@@ -381,18 +381,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Error'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
+      builder: (ctx) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -520,6 +518,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _isLoading = false;
         });
         
+        // Notify user about backup improvements
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Your backup has been created and can be imported on other devices where you have KeepSafe installed.',
+              style: TextStyle(fontSize: 13),
+            ),
+            duration: const Duration(seconds: 6),
+            action: SnackBarAction(
+              label: 'OK',
+              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
+          ),
+        );
+        
         // Share the exported file
         await Share.shareXFiles(
           [XFile(filePath)],
@@ -591,14 +604,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
       
       // Import the data - let the import service validate the file contents
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
-      await dataProvider.importData(filePath);
       
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      try {
+        await dataProvider.importData(filePath);
         
-        _showSuccessSnackBar('Data imported successfully');
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          
+          // Check if this was a legacy import (which creates empty data)
+          final bool hasData = dataProvider.credentials.isNotEmpty || dataProvider.familyMembers.isNotEmpty;
+          
+          if (!hasData) {
+            // Show special message for legacy/empty imports
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  title: const Text('Import Partial Success'),
+                  content: const Text(
+                    'Your backup file was recognized but could not be fully decrypted due to compatibility issues. '
+                    'A new empty vault has been created. You may need to manually add your data.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                );
+              },
+            );
+          } else {
+            _showSuccessSnackBar('Data imported successfully');
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          
+          if (e.toString().contains('Key length not 128/192/256 bits') || 
+              e.toString().contains('corrupted') ||
+              e.toString().contains('different device')) {
+            
+            // Show dialog with option to create new backup
+            _showBackupCompatibilityDialog();
+          } else {
+            _showErrorDialog('Failed to import data: ${e.toString()}');
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -609,11 +666,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     }
   }
+  
+  // Show dialog explaining the backup compatibility issue
+  void _showBackupCompatibilityDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Backup Compatibility Issue'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'The backup file could not be imported because it was created on a different device or with a different app version.',
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Recommendation:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '• Create a new backup on your original device using the latest app version\n'
+                '• If that\'s not possible, you\'ll need to manually recreate your data on this device',
+                style: TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK, I UNDERSTAND'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Future<void> _shareApp() async {
     try {
       await Share.share(
-        'Check out KeepSafe - Your Personal Secure Vault for storing confidential information securely: https://play.google.com/store/apps/details?id=com.keepsafe',
+        'Check out KeepSafe - Your Personal Secure Vault for storing confidential information securely: https://play.google.com/store/apps/details?id=com.mayur.keepsafe',
         subject: 'KeepSafe - Your Personal Secure Vault',
       );
     } catch (e) {
@@ -626,7 +721,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final Uri url;
     if (Platform.isAndroid) {
       // Android Play Store URL
-      url = Uri.parse('https://play.google.com/store/apps/details?id=com.keepsafe');
+      url = Uri.parse('https://play.google.com/store/apps/details?id=com.mayur.keepsafe');
     } else if (Platform.isIOS) {
       // iOS App Store URL
       url = Uri.parse('https://apps.apple.com/app/id123456789'); // Replace with your iOS app ID
@@ -648,14 +743,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _viewPrivacyPolicy() async {
-    // Replace this URL with your actual privacy policy URL
+    // Use the actual Google Docs privacy policy URL
     final Uri url = Uri.parse('https://docs.google.com/document/d/10PCio1f6F87L1LOcse6tNymGmeFsB5EUKyt_q3Y0j34/edit?usp=sharing');
     
     try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url);
+      // Add more debugging info
+      debugPrint('Attempting to launch URL: $url');
+      final canLaunch = await canLaunchUrl(url);
+      debugPrint('Can launch URL: $canLaunch');
+      
+      if (canLaunch) {
+        final result = await launchUrl(
+          url, 
+          mode: LaunchMode.externalApplication,
+          webViewConfiguration: const WebViewConfiguration(
+            enableJavaScript: true,
+            enableDomStorage: true,
+          ),
+        );
+        debugPrint('Launch result: $result');
+        if (!result) {
+          _showErrorDialog('Failed to launch the URL: $url');
+        }
       } else {
-        _showErrorDialog('Could not launch the privacy policy page');
+        // Fallback to another approach
+        _showErrorDialog('Could not launch the privacy policy. Please try opening it manually: https://docs.google.com/document/d/10PCio1f6F87L1LOcse6tNymGmeFsB5EUKyt_q3Y0j34/edit?usp=sharing');
       }
     } catch (e) {
       debugPrint('Error opening privacy policy: $e');
