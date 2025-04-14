@@ -20,6 +20,7 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _fieldsControllers = <String, TextEditingController>{};
+  final _fieldNameControllers = <String, TextEditingController>{};
   
   String _selectedCategory = Credential.CATEGORY_WEBSITE;
   int? _selectedFamilyMemberId;
@@ -42,6 +43,7 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
       // Setup dynamic fields based on credential type
       credential.fields.forEach((key, value) {
         _fieldsControllers[key] = TextEditingController(text: value);
+        _fieldNameControllers[key] = TextEditingController(text: key);
         _dynamicFields.add({'key': key, 'value': value});
       });
     } else {
@@ -54,6 +56,9 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
   void dispose() {
     _titleController.dispose();
     for (var controller in _fieldsControllers.values) {
+      controller.dispose();
+    }
+    for (var controller in _fieldNameControllers.values) {
       controller.dispose();
     }
     super.dispose();
@@ -109,6 +114,9 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
       if (!_fieldsControllers.containsKey(key)) {
         _fieldsControllers[key] = TextEditingController(text: field['value']);
       }
+      if (!_fieldNameControllers.containsKey(key)) {
+        _fieldNameControllers[key] = TextEditingController(text: key);
+      }
     }
   }
   
@@ -117,6 +125,7 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
       final newKey = 'Field ${_dynamicFields.length + 1}';
       _dynamicFields.add({'key': newKey, 'value': ''});
       _fieldsControllers[newKey] = TextEditingController();
+      _fieldNameControllers[newKey] = TextEditingController(text: newKey);
     });
   }
   
@@ -311,19 +320,30 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
                   Expanded(
                     flex: 2,
                     child: TextFormField(
-                      initialValue: key,
+                      controller: _fieldNameControllers[key],
                       decoration: const InputDecoration(
                         labelText: 'Field Name',
                         border: OutlineInputBorder(),
                       ),
                       onChanged: (value) {
                         if (value != key) {
-                          final oldController = _fieldsControllers[key];
-                          setState(() {
-                            _dynamicFields[index]['key'] = value;
-                            _fieldsControllers[value] = oldController!;
-                            _fieldsControllers.remove(key);
-                          });
+                          // Store the old controllers
+                          final oldValueController = _fieldsControllers[key];
+                          final oldNameController = _fieldNameControllers[key];
+                          
+                          // Update the field name in the dynamic fields list
+                          _dynamicFields[index]['key'] = value;
+                          
+                          // Update the controllers map
+                          _fieldsControllers[value] = oldValueController!;
+                          _fieldNameControllers[value] = oldNameController!;
+                          
+                          // Remove old entries
+                          _fieldsControllers.remove(key);
+                          _fieldNameControllers.remove(key);
+                          
+                          // Update the controller text without triggering rebuild
+                          _fieldNameControllers[value]?.text = value;
                         }
                       },
                     ),
