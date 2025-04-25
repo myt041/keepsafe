@@ -149,35 +149,43 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
   
   Future<void> _saveCredential() async {
     if (_formKey.currentState!.validate()) {
-      // Collect all field values
-      final Map<String, String> fields = {};
-      for (var field in _dynamicFields) {
-        final key = field['key']!;
-        fields[key] = _fieldsControllers[key]!.text;
-      }
-      
-      // Create credential object
-      final credential = Credential(
-        id: _isEditing ? widget.credentialToEdit!.id : null,
-        familyMemberId: _selectedFamilyMemberId,
-        title: _titleController.text,
-        category: _selectedCategory,
-        fields: fields,
-        createdAt: _isEditing ? widget.credentialToEdit!.createdAt : null,
-        isFavorite: _isEditing ? widget.credentialToEdit!.isFavorite : false,
-      );
-      
-      // Save to database via provider
-      final dataProvider = Provider.of<DataProvider>(context, listen: false);
-      
-      if (_isEditing) {
-        await dataProvider.updateCredential(credential);
-      } else {
-        await dataProvider.addCredential(credential);
-      }
-      
-      if (mounted) {
-        Navigator.of(context).pop();
+      try {
+        // Collect all field values
+        final Map<String, String> fields = {};
+        for (var field in _dynamicFields) {
+          final key = field['key']!;
+          final controller = _fieldsControllers[key];
+          if (controller != null) {
+            fields[key] = controller.text;
+          }
+        }
+        
+        // Create credential object
+        final now = DateTime.now();
+        final credential = Credential(
+          id: _isEditing ? widget.credentialToEdit!.id : null,
+          familyMemberId: _selectedFamilyMemberId,
+          title: _titleController.text,
+          category: _selectedCategory,
+          fields: fields,
+          createdAt: _isEditing ? widget.credentialToEdit!.createdAt : now,
+          updatedAt: now,
+          isFavorite: _isEditing ? widget.credentialToEdit?.isFavorite ?? false : false,
+        );
+        
+        // Save to database via provider
+        final dataProvider = Provider.of<DataProvider>(context, listen: false);
+        if (_isEditing) {
+          await dataProvider.updateCredential(credential);
+        } else {
+          await dataProvider.addCredential(credential);
+        }
+        
+        Navigator.pop(context);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving credential: ${e.toString()}')),
+        );
       }
     }
   }

@@ -13,6 +13,7 @@ import 'package:keepsafe/widgets/credential_card.dart';
 import 'package:keepsafe/widgets/empty_state.dart';
 import 'package:keepsafe/widgets/family_avatar.dart';
 import 'package:keepsafe/widgets/search_bar.dart';
+import 'package:keepsafe/services/app_update_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -28,10 +29,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeData();
+    _loadData();
+    // Check for app updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpdateService.checkForUpdate(context);
+    });
   }
 
-  Future<void> _initializeData() async {
+  Future<void> _loadData() async {
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
     
     setState(() {
