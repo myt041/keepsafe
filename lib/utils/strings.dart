@@ -87,5 +87,5 @@ class AppStrings {
   static const String playStoreUrl = 'https://play.google.com/store/apps/details?id=com.mayur.keepsafe';
   static const String appStoreUrl = 'https://apps.apple.com/app/id123456789';
   static const String appWebsite = 'https://keepsafe.app';
-  static const String privacyPolicyUrl = 'https://docs.google.com/document/d/10PCio1f6F87L1LOcse6tNymGmeFsB5EUKyt_q3Y0j34/edit?usp=sharing';
+  static const String privacyPolicyUrl = 'https://mayur.dev/setkeep-safe-privacy-policy';
 } 
