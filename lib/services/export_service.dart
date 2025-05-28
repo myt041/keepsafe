@@ -131,7 +131,7 @@ class ExportService {
           }
         } catch (e) {
           debugPrint('Error parsing JSON: $e');
-          throw FormatException('Could not parse the file content as JSON. This may not be a valid backup file.');
+          throw const FormatException('Could not parse the file content as JSON. This may not be a valid backup file.');
         }
         
         // Validate the data format

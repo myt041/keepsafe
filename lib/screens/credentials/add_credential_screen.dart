@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:keepsafe/models/credential.dart';
-import 'package:keepsafe/models/family_member.dart';
 import 'package:keepsafe/providers/data_provider.dart';
 
 class AddCredentialScreen extends StatefulWidget {
@@ -33,6 +32,8 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
     super.initState();
     
     if (_isEditing) {
+      print('=== EDIT MODE INITIALIZATION ===');
+      print('Credential to edit: ${widget.credentialToEdit?.toMap()}');
       // Fill form with data from the credential being edited
       final credential = widget.credentialToEdit!;
       
@@ -40,12 +41,24 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
       _selectedCategory = credential.category;
       _selectedFamilyMemberId = credential.familyMemberId;
       
+      print('Initialized with:');
+      print('- Title: ${credential.title}');
+      print('- Category: ${credential.category}');
+      print('- Family Member ID: ${credential.familyMemberId}');
+      print('- Fields: ${credential.fields}');
+      
       // Setup dynamic fields based on credential type
-      credential.fields.forEach((key, value) {
-        _fieldsControllers[key] = TextEditingController(text: value);
-        _fieldNameControllers[key] = TextEditingController(text: key);
-        _dynamicFields.add({'key': key, 'value': value});
-      });
+      if (credential.fields.isEmpty) {
+        // If fields are empty, initialize with default fields for the category
+        _updateDynamicFields();
+      } else {
+        credential.fields.forEach((key, value) {
+          _fieldsControllers[key] = TextEditingController(text: value);
+          _fieldNameControllers[key] = TextEditingController(text: key);
+          _dynamicFields.add({'key': key, 'value': value});
+        });
+      }
+      print('Dynamic fields initialized: $_dynamicFields');
     } else {
       // Initialize with default fields based on category
       _updateDynamicFields();
@@ -150,6 +163,9 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
   Future<void> _saveCredential() async {
     if (_formKey.currentState!.validate()) {
       try {
+        print('=== SAVING CREDENTIAL ===');
+        print('Is editing mode: $_isEditing');
+        
         // Collect all field values
         final Map<String, String> fields = {};
         for (var field in _dynamicFields) {
@@ -159,6 +175,8 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
             fields[key] = controller.text;
           }
         }
+        
+        print('Collected fields: $fields');
         
         // Create credential object
         final now = DateTime.now();
@@ -173,16 +191,25 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
           isFavorite: _isEditing ? widget.credentialToEdit?.isFavorite ?? false : false,
         );
         
+        print('Credential object created: ${credential.toMap()}');
+        
         // Save to database via provider
         final dataProvider = Provider.of<DataProvider>(context, listen: false);
         if (_isEditing) {
+          print('Updating existing credential...');
           await dataProvider.updateCredential(credential);
+          print('Credential updated successfully');
         } else {
+          print('Adding new credential...');
           await dataProvider.addCredential(credential);
+          print('Credential added successfully');
         }
         
         Navigator.pop(context);
-      } catch (e) {
+      } catch (e, stackTrace) {
+        print('=== ERROR SAVING CREDENTIAL ===');
+        print('Error: $e');
+        print('Stack trace: $stackTrace');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving credential: ${e.toString()}')),
         );
@@ -335,23 +362,35 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
                       ),
                       onChanged: (value) {
                         if (value != key) {
+                          print('=== FIELD NAME CHANGE ===');
+                          print('Old key: $key');
+                          print('New value: $value');
+                          print('Current dynamic fields: $_dynamicFields');
+                          
                           // Store the old controllers
                           final oldValueController = _fieldsControllers[key];
                           final oldNameController = _fieldNameControllers[key];
                           
-                          // Update the field name in the dynamic fields list
-                          _dynamicFields[index]['key'] = value;
-                          
-                          // Update the controllers map
-                          _fieldsControllers[value] = oldValueController!;
-                          _fieldNameControllers[value] = oldNameController!;
-                          
-                          // Remove old entries
-                          _fieldsControllers.remove(key);
-                          _fieldNameControllers.remove(key);
-                          
-                          // Update the controller text without triggering rebuild
-                          _fieldNameControllers[value]?.text = value;
+                          if (oldValueController != null && oldNameController != null) {
+                            // Update the field name in the dynamic fields list
+                            _dynamicFields[index]['key'] = value;
+                            
+                            // Update the controllers map
+                            _fieldsControllers[value] = oldValueController;
+                            _fieldNameControllers[value] = oldNameController;
+                            
+                            // Remove old entries
+                            _fieldsControllers.remove(key);
+                            _fieldNameControllers.remove(key);
+                            
+                            // Update the controller text without triggering rebuild
+                            _fieldNameControllers[value]?.text = value;
+                            
+                            print('Updated dynamic fields: $_dynamicFields');
+                            print('Updated controllers:');
+                            print('- Fields controllers: ${_fieldsControllers.keys}');
+                            print('- Name controllers: ${_fieldNameControllers.keys}');
+                          }
                         }
                       },
                     ),

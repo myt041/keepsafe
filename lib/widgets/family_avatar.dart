@@ -43,8 +43,8 @@ class FamilyAvatar extends StatelessWidget {
       ),
       child: photoUrl != null && photoUrl!.isNotEmpty
           ? ClipOval(
-              child: _buildImage(photoUrl!, initials, isDark),
               clipBehavior: Clip.antiAlias,
+              child: _buildImage(photoUrl!, initials, isDark),
             )
           : _buildInitialsAvatar(initials, isDark),
     );
@@ -100,7 +100,7 @@ class FamilyAvatar extends StatelessWidget {
         child: SizedBox(
           width: size / 3,
           height: size / 3,
-          child: CircularProgressIndicator(
+          child: const CircularProgressIndicator(
             strokeWidth: 2,
             color: AppTheme.primaryColor,
           ),

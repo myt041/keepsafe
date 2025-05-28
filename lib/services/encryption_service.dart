@@ -157,9 +157,7 @@ class EncryptionService {
   
   // Ensure the key is loaded before use
   Future<encryptLib.Key> _ensureKeyIsLoaded() async {
-    if (_cachedKey == null) {
-      _cachedKey = await _getOrCreateEncryptionKey();
-    }
+    _cachedKey ??= await _getOrCreateEncryptionKey();
     return _cachedKey!;
   }
 
