@@ -25,7 +25,6 @@ class AppTheme {
       secondary: accentColor,
       error: errorColor,
       surface: surfaceColor,
-      background: backgroundColor,
     ),
     scaffoldBackgroundColor: backgroundColor,
     textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
@@ -61,7 +60,7 @@ class AppTheme {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -72,13 +71,11 @@ class AppTheme {
 
   // Dark Theme
   static final ThemeData darkTheme = ThemeData.dark().copyWith(
-    useMaterial3: true,
     colorScheme: const ColorScheme.dark(
       primary: primaryColor,
       secondary: accentColor,
       error: errorColor,
       surface: darkSurfaceColor,
-      background: darkBackgroundColor,
     ),
     scaffoldBackgroundColor: darkBackgroundColor,
     textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
@@ -114,7 +111,7 @@ class AppTheme {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),

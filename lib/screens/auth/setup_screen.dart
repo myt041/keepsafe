@@ -115,7 +115,7 @@ class _SetupScreenState extends State<SetupScreen> {
     final hasBiometrics = authProvider.isBiometricsAvailable;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: [

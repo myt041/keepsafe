@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:keepsafe/providers/auth_provider.dart';
 import 'package:keepsafe/providers/theme_provider.dart';
@@ -158,7 +157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
       child: Text(
         title,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.bold,
           color: AppTheme.primaryColor,
@@ -215,7 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text(AppStrings.changePin),
+              title: const Text(AppStrings.changePin),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -254,7 +253,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                   TextField(
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: AppStrings.changePin,
                     ),
                     keyboardType: TextInputType.number,
@@ -274,7 +273,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: Text(AppStrings.cancel),
+                  child: const Text(AppStrings.cancel),
                 ),
                 TextButton(
                   onPressed: () async {
@@ -300,7 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       });
                     }
                   },
-                  child: Text(AppStrings.change),
+                  child: const Text(AppStrings.change),
                 ),
               ],
             );
@@ -315,19 +314,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(AppStrings.clearAllData),
-          content: Text(AppStrings.clearDataWarning),
+          title: const Text(AppStrings.clearAllData),
+          content: const Text(AppStrings.clearDataWarning),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: Text(AppStrings.cancel),
+              child: const Text(AppStrings.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: TextButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.error,
               ),
-              child: Text(AppStrings.delete),
+              child: const Text(AppStrings.delete),
             ),
           ],
         );
@@ -380,12 +379,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.error),
+        title: const Text(AppStrings.error),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(AppStrings.ok),
+            child: const Text(AppStrings.ok),
           ),
         ],
       ),
@@ -410,7 +409,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) {
         return SimpleDialog(
-          title: Text(AppStrings.selectTheme),
+          title: const Text(AppStrings.selectTheme),
           children: [
             _buildThemeOption(
               context,
@@ -486,7 +485,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             if (isSelected)
-              Icon(
+              const Icon(
                 Icons.check,
                 color: AppTheme.primaryColor,
               ),
@@ -512,7 +511,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppStrings.backupCreated),
+            content: const Text(AppStrings.backupCreated),
             duration: const Duration(seconds: 6),
             action: SnackBarAction(
               label: AppStrings.ok,
@@ -542,16 +541,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(AppStrings.importData),
-          content: Text(AppStrings.importDataWarning),
+          title: const Text(AppStrings.importData),
+          content: const Text(AppStrings.importDataWarning),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: Text(AppStrings.cancel),
+              child: const Text(AppStrings.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: Text(AppStrings.continueText),
+              child: const Text(AppStrings.continueText),
             ),
           ],
         );
@@ -602,12 +601,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               context: context,
               builder: (context) {
                 return AlertDialog(
-                  title: Text(AppStrings.importData),
-                  content: Text(AppStrings.backupCompatibilityIssue),
+                  title: const Text(AppStrings.importData),
+                  content: const Text(AppStrings.backupCompatibilityIssue),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: Text(AppStrings.ok),
+                      child: const Text(AppStrings.ok),
                     ),
                   ],
                 );
@@ -647,16 +646,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(AppStrings.importData),
-          content: Column(
+          title: const Text(AppStrings.importData),
+          content: const Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(AppStrings.backupCompatibilityIssue),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               Text(
                 AppStrings.recommendation,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
               Text(AppStrings.createNewBackup),
               Text(AppStrings.manualRecreate),
@@ -665,7 +664,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(AppStrings.understand),
+              child: const Text(AppStrings.understand),
             ),
           ],
         );
@@ -743,14 +742,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: Text(AppStrings.connectWithUs),
+            title: const Text(AppStrings.connectWithUs),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
                   leading: const Icon(Icons.email_outlined),
-                  title: Text(AppStrings.email),
-                  subtitle: Text(AppStrings.supportEmail),
+                  title: const Text(AppStrings.email),
+                  subtitle: const Text(AppStrings.supportEmail),
                   onTap: () async {
                     final Uri emailUri = Uri(
                       scheme: 'mailto',
@@ -771,8 +770,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ListTile(
                   leading: const Icon(Icons.language_outlined),
-                  title: Text(AppStrings.website),
-                  subtitle: Text(AppStrings.websiteUrl),
+                  title: const Text(AppStrings.website),
+                  subtitle: const Text(AppStrings.websiteUrl),
                   onTap: () async {
                     final Uri websiteUri = Uri.parse(AppStrings.websiteUrl);
                     
@@ -792,7 +791,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text(AppStrings.close),
+                child: const Text(AppStrings.close),
               ),
             ],
           );

@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,8 +5,6 @@ import 'package:keepsafe/models/family_member.dart';
 import 'package:keepsafe/providers/data_provider.dart';
 import 'package:keepsafe/utils/theme.dart';
 import 'package:keepsafe/widgets/family_avatar.dart';
-import 'package:path_provider/path_provider.dart' as path_provider;
-import 'package:path/path.dart' as path;
 
 class AddFamilyMemberScreen extends StatefulWidget {
   final FamilyMember? memberToEdit;
@@ -283,7 +279,7 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
               : CircleAvatar(
                   radius: 50,
                   backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
-                  child: Icon(
+                  child: const Icon(
                     Icons.person,
                     size: 50,
                     color: AppTheme.primaryColor,

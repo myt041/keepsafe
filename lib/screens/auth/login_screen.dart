@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // Check if biometrics are available before attempting auth
-      final biometricsAvailable = await authProvider.isBiometricsAvailable;
+      final biometricsAvailable = authProvider.isBiometricsAvailable;
       if (!biometricsAvailable) {
         if (mounted) {
           setState(() {
@@ -155,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
                          authProvider.isBiometricsEnabled;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
