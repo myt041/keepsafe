@@ -327,8 +327,10 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
   }
 
   Widget _buildBasicInfoCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
-      elevation: 2,
+      elevation: isDark ? 4 : 2,
+      shadowColor: isDark ? Colors.black.withOpacity(0.5) : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -368,6 +370,7 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
   Widget _buildTitleField() {
     return TextFormField(
       controller: _titleController,
+      textCapitalization: TextCapitalization.sentences,
       decoration: InputDecoration(
         labelText: 'Title',
         hintText: 'Enter a title for this credential',
@@ -466,8 +469,10 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
   }
 
   Widget _buildFieldsSection() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
-      elevation: 2,
+      elevation: isDark ? 4 : 2,
+      shadowColor: isDark ? Colors.black.withOpacity(0.5) : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -517,7 +522,8 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
                 final isPassword = _isPasswordField(key);
                 
                 return Card(
-                  elevation: 1,
+                  elevation: isDark ? 3 : 1,
+                  shadowColor: isDark ? Colors.black.withOpacity(0.4) : null,
                   margin: const EdgeInsets.only(bottom: 16.0),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -533,6 +539,7 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
                               child: TextFormField(
                                 controller: _fieldNameControllers[key],
                                 focusNode: _fieldNameFocusNodes[key],
+                                textCapitalization: TextCapitalization.words,
                                 decoration: InputDecoration(
                                   labelText: 'Field Name',
                                   border: OutlineInputBorder(
