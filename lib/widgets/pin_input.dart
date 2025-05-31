@@ -32,10 +32,10 @@ class PinInput extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: index < pin.length
-                    ? AppTheme.primaryColor
+                    ? Theme.of(context).colorScheme.primary
                     : (isDarkMode ? Colors.grey[800] : Colors.grey[300]),
                 border: Border.all(
-                  color: AppTheme.primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                   width: 1,
                 ),
               ),

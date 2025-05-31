@@ -26,7 +26,7 @@ class CredentialCard extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              _buildIcon(),
+              _buildIcon(context),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -73,7 +73,7 @@ class CredentialCard extends StatelessWidget {
     );
   }
 
-  Widget _buildIcon() {
+  Widget _buildIcon(BuildContext context) {
     late IconData iconData;
     late Color iconColor;
 
@@ -96,7 +96,7 @@ class CredentialCard extends StatelessWidget {
         break;
       default:
         iconData = Icons.lock;
-        iconColor = AppTheme.primaryColor;
+        iconColor = Theme.of(context).colorScheme.primary;
     }
 
     return Container(
