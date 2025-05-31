@@ -37,7 +37,6 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
         ),
       ),
     ).then((_) {
-      // Refresh credential data after edit
       _refreshCredential();
     });
   }
@@ -49,7 +48,6 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
       _isLoading = true;
     });
     
-    // Find the updated credential in the provider
     final credentials = dataProvider.credentials;
     final updatedCredential = credentials.firstWhere(
       (c) => c.id == _credential.id,
@@ -76,6 +74,9 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
         content: const Text(
           'Are you sure you want to delete this credential? This action cannot be undone.',
         ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -83,6 +84,9 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: const Text('DELETE'),
           ),
         ],
@@ -102,9 +106,19 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
   void _copyToClipboard(String value) {
     Clipboard.setData(ClipboardData(text: value));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Copied to clipboard'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            const Text('Copied to clipboard'),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -114,39 +128,57 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Credential Details'),
+        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         actions: [
           IconButton(
             icon: Icon(
               _credential.isFavorite ? Icons.star : Icons.star_border,
-              color: _credential.isFavorite ? Colors.yellow : null,
+              color: _credential.isFavorite ? Colors.amber : null,
             ),
             onPressed: _toggleFavorite,
+            tooltip: _credential.isFavorite ? 'Remove from favorites' : 'Add to favorites',
           ),
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: _editCredential,
+            tooltip: 'Edit credential',
           ),
           IconButton(
-            icon: const Icon(Icons.delete),
+            icon: const Icon(Icons.delete_outline),
             onPressed: _deleteCredential,
+            tooltip: 'Delete credential',
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(),
-                  const SizedBox(height: 24),
-                  _buildFieldsList(),
-                  const SizedBox(height: 24),
-                  _buildMetadata(),
-                ],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.surface,
+              Theme.of(context).colorScheme.surface.withOpacity(0.8),
+            ],
+          ),
+        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 24),
+                    _buildFieldsList(),
+                    const SizedBox(height: 24),
+                    _buildMetadata(),
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
   
@@ -162,85 +194,167 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
       ownerName = familyMember.name;
     }
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _credential.title,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Chip(
-              label: Text(_credential.category),
-              backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+            Row(
+              children: [
+                Icon(
+                  _getCategoryIcon(_credential.category),
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _credential.title,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Chip(
-              label: Text('Owner: $ownerName'),
-              backgroundColor: AppTheme.accentColor.withOpacity(0.1),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(
+                  label: Text(_credential.category),
+                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  labelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  avatar: Icon(
+                    _getCategoryIcon(_credential.category),
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                Chip(
+                  label: Text('Owner: $ownerName'),
+                  backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                  labelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.secondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  avatar: const Icon(
+                    Icons.person_outline,
+                    size: 16,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-      ],
+      ),
     );
   }
   
   Widget _buildFieldsList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Details',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 16),
-        ...(_credential.fields.entries.map((entry) {
-          final key = entry.key;
-          final value = entry.value;
-          final isSecret = key.toLowerCase().contains('password') || 
-                          key.toLowerCase().contains('pin') ||
-                          key.toLowerCase().contains('cvv');
-          
-          return Card(
-            elevation: 1,
-            margin: const EdgeInsets.only(bottom: 12),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    key,
-                    style: Theme.of(context).textTheme.titleSmall,
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.list_alt,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Details',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-                  const SizedBox(height: 8),
-                  Row(
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...(_credential.fields.entries.map((entry) {
+              final key = entry.key;
+              final value = entry.value;
+              final isSecret = key.toLowerCase().contains('password') || 
+                              key.toLowerCase().contains('pin') ||
+                              key.toLowerCase().contains('cvv');
+              
+              return Card(
+                elevation: 1,
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: isSecret 
-                            ? _buildSecretField(value)
-                            : Text(
-                                value,
-                                style: Theme.of(context).textTheme.bodyLarge,
-                              ),
+                      Row(
+                        children: [
+                          Icon(
+                            _getFieldIcon(key),
+                            size: 16,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            key,
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.copy),
-                        onPressed: () => _copyToClipboard(value),
-                        tooltip: 'Copy to clipboard',
-                      ),
+                      const SizedBox(height: 12),
+                      isSecret 
+                          ? _buildSecretField(value)
+                          : Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    value,
+                                    style: Theme.of(context).textTheme.bodyLarge,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy_outlined),
+                                  onPressed: () => _copyToClipboard(value),
+                                  tooltip: 'Copy to clipboard',
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                    padding: const EdgeInsets.all(12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                     ],
                   ),
-                ],
-              ),
-            ),
-          );
-        }).toList()),
-      ],
+                ),
+              );
+            }).toList()),
+          ],
+        ),
+      ),
     );
   }
   
@@ -252,25 +366,87 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
     final createdAt = _formatDate(_credential.createdAt);
     final updatedAt = _formatDate(_credential.updatedAt);
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Information',
-          style: Theme.of(context).textTheme.titleLarge,
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Information',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildInfoTile(
+              icon: Icons.calendar_today,
+              title: 'Created',
+              subtitle: createdAt,
+            ),
+            const Divider(),
+            _buildInfoTile(
+              icon: Icons.update,
+              title: 'Last updated',
+              subtitle: updatedAt,
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        ListTile(
-          title: const Text('Created'),
-          subtitle: Text(createdAt),
-          leading: const Icon(Icons.calendar_today),
-        ),
-        ListTile(
-          title: const Text('Last updated'),
-          subtitle: Text(updatedAt),
-          leading: const Icon(Icons.update),
-        ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildInfoTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
   
@@ -287,9 +463,35 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
       return '${date.day}/${date.month}/${date.year}, ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
     }
   }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case Credential.CATEGORY_WEBSITE:
+        return Icons.language;
+      case Credential.CATEGORY_APP:
+        return Icons.phone_android;
+      case Credential.CATEGORY_BANK:
+        return Icons.account_balance;
+      case Credential.CATEGORY_CARD:
+        return Icons.credit_card;
+      default:
+        return Icons.star;
+    }
+  }
+
+  IconData _getFieldIcon(String fieldName) {
+    final lowerFieldName = fieldName.toLowerCase();
+    if (lowerFieldName.contains('password')) return Icons.lock;
+    if (lowerFieldName.contains('email')) return Icons.email;
+    if (lowerFieldName.contains('username')) return Icons.person;
+    if (lowerFieldName.contains('url')) return Icons.link;
+    if (lowerFieldName.contains('phone')) return Icons.phone;
+    if (lowerFieldName.contains('pin')) return Icons.pin;
+    if (lowerFieldName.contains('cvv')) return Icons.security;
+    return Icons.info;
+  }
 }
 
-// Stateful widget for handling secret fields
 class _SecretFieldWidget extends StatefulWidget {
   final String value;
   
@@ -308,16 +510,57 @@ class _SecretFieldWidgetState extends State<_SecretFieldWidget> {
     
     return Row(
       children: [
-        Text(
-          _showSecret ? widget.value : obscured,
-          style: Theme.of(context).textTheme.bodyLarge,
+        Expanded(
+          child: Text(
+            _showSecret ? widget.value : obscured,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
         ),
         IconButton(
           icon: Icon(
             _showSecret ? Icons.visibility_off : Icons.visibility,
+            color: Theme.of(context).colorScheme.primary,
           ),
           onPressed: () => setState(() => _showSecret = !_showSecret),
           tooltip: _showSecret ? 'Hide' : 'Show',
+          style: IconButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            padding: const EdgeInsets.all(12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.copy_outlined),
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: widget.value));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 8),
+                    const Text('Copied to clipboard'),
+                  ],
+                ),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          },
+          tooltip: 'Copy to clipboard',
+          style: IconButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            padding: const EdgeInsets.all(12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
         ),
       ],
     );
