@@ -132,8 +132,8 @@ class _SetupScreenState extends State<SetupScreen> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: i == _currentStep
-                            ? AppTheme.primaryColor
-                            : AppTheme.primaryColor.withOpacity(0.3),
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.primary.withOpacity(0.3),
                       ),
                     ),
                 ],
@@ -169,7 +169,7 @@ class _SetupScreenState extends State<SetupScreen> {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor,
+                color: Theme.of(context).colorScheme.primary,
                 borderRadius: BorderRadius.circular(30),
               ),
               child: const Icon(
@@ -215,10 +215,10 @@ class _SetupScreenState extends State<SetupScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 30),
-            const Icon(
+            Icon(
               Icons.pin,
               size: 80,
-              color: AppTheme.primaryColor,
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 30),
             Text(
@@ -254,10 +254,10 @@ class _SetupScreenState extends State<SetupScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 30),
-            const Icon(
+            Icon(
               Icons.check_circle,
               size: 80,
-              color: AppTheme.primaryColor,
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 30),
             Text(
@@ -320,7 +320,7 @@ class _SetupScreenState extends State<SetupScreen> {
             Icon(
               biometricIcon,
               size: 80,
-              color: AppTheme.primaryColor,
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 30),
             Text(

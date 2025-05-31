@@ -278,11 +278,11 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
                 )
               : CircleAvatar(
                   radius: 50,
-                  backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
-                  child: const Icon(
+                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                  child: Icon(
                     Icons.person,
                     size: 50,
-                    color: AppTheme.primaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
         ),

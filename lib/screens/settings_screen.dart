@@ -157,10 +157,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.bold,
-          color: AppTheme.primaryColor,
+          color: Theme.of(context).colorScheme.primary,
         ),
       ),
     );
@@ -463,7 +463,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppTheme.primaryColor : null,
+              color: isSelected ? Theme.of(context).colorScheme.primary : null,
             ),
             const SizedBox(width: 16.0),
             Expanded(
@@ -474,7 +474,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title,
                     style: TextStyle(
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? AppTheme.primaryColor : null,
+                      color: isSelected ? Theme.of(context).colorScheme.primary : null,
                     ),
                   ),
                   Text(
@@ -485,9 +485,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             if (isSelected)
-              const Icon(
+              Icon(
                 Icons.check,
-                color: AppTheme.primaryColor,
+                color: Theme.of(context).colorScheme.primary,
               ),
           ],
         ),

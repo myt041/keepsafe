@@ -23,7 +23,7 @@ class FamilyAvatar extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final isDark = themeProvider.isDarkMode;
     
-    final borderColor = isSelected ? AppTheme.primaryColor : Colors.transparent;
+    final borderColor = isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent;
     final borderWidth = isSelected ? 2.0 : 0.0;
 
     // Use initials if no photo is available
@@ -79,7 +79,7 @@ class FamilyAvatar extends StatelessWidget {
       fit: BoxFit.cover,
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
-        return _buildLoadingAvatar();
+        return _buildLoadingAvatar(context);
       },
       errorBuilder: (context, error, stackTrace) {
         // If network image fails, fall back to initials
@@ -88,7 +88,7 @@ class FamilyAvatar extends StatelessWidget {
     );
   }
 
-  Widget _buildLoadingAvatar() {
+  Widget _buildLoadingAvatar(BuildContext context) {
     return Container(
       width: size,
       height: size,
@@ -100,9 +100,9 @@ class FamilyAvatar extends StatelessWidget {
         child: SizedBox(
           width: size / 3,
           height: size / 3,
-          child: const CircularProgressIndicator(
+          child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: AppTheme.primaryColor,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
       ),
