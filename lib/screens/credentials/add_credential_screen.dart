@@ -20,11 +20,12 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
   final _titleController = TextEditingController();
   final _fieldsControllers = <String, TextEditingController>{};
   final _fieldNameControllers = <String, TextEditingController>{};
+  final _showPasswordStates = <String, bool>{};
+  final _fieldNameFocusNodes = <String, FocusNode>{};
+  final List<Map<String, String>> _dynamicFields = [];
   
   String _selectedCategory = Credential.CATEGORY_WEBSITE;
   int? _selectedFamilyMemberId;
-  final List<Map<String, String>> _dynamicFields = [];
-  
   bool get _isEditing => widget.credentialToEdit != null;
 
   @override
@@ -55,7 +56,12 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
         credential.fields.forEach((key, value) {
           _fieldsControllers[key] = TextEditingController(text: value);
           _fieldNameControllers[key] = TextEditingController(text: key);
+          _fieldNameFocusNodes[key] = FocusNode();
           _dynamicFields.add({'key': key, 'value': value});
+          // Initialize show password state for password fields
+          if (_isPasswordField(key)) {
+            _showPasswordStates[key] = false;
+          }
         });
       }
       print('Dynamic fields initialized: $_dynamicFields');
@@ -64,7 +70,7 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
       _updateDynamicFields();
     }
   }
-  
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -74,9 +80,12 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
     for (var controller in _fieldNameControllers.values) {
       controller.dispose();
     }
+    for (var node in _fieldNameFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
-  
+
   void _updateDynamicFields() {
     _dynamicFields.clear();
     
@@ -132,39 +141,99 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
       }
     }
   }
-  
+
+  bool _isPasswordField(String fieldName) {
+    final lowerFieldName = fieldName.toLowerCase();
+    return lowerFieldName.contains('password') || 
+           lowerFieldName.contains('pin') ||
+           lowerFieldName.contains('cvv');
+  }
+
   void _addNewField() {
     setState(() {
       final newKey = 'Field ${_dynamicFields.length + 1}';
       _dynamicFields.add({'key': newKey, 'value': ''});
       _fieldsControllers[newKey] = TextEditingController();
       _fieldNameControllers[newKey] = TextEditingController(text: newKey);
+      _fieldNameFocusNodes[newKey] = FocusNode();
     });
   }
-  
+
   void _removeField(int index) {
-    // Get the key of the field we want to remove
-    print('Before removal: $_dynamicFields');
     final key = _dynamicFields[index]['key']!;
-    print('Removing field at index $index with key: $key');
+    print('Deleting field at index $index: $key');
     
     setState(() {
-      // First dispose controller
       _fieldsControllers[key]?.dispose();
-      // Remove controller from map
       _fieldsControllers.remove(key);
-      // Remove the field from dynamic fields at the specific index
       _dynamicFields.removeAt(index);
     });
-    
-    print('After removal: $_dynamicFields');
   }
-  
+
+  void _updateFieldName(String oldKey, String newKey, int index) {
+    if (newKey.isEmpty) {
+      // If the new key is empty, revert to the old key
+      _fieldNameControllers[oldKey]?.text = oldKey;
+      return;
+    }
+
+    // Store the old controllers
+    final oldValueController = _fieldsControllers[oldKey];
+    final oldNameController = _fieldNameControllers[oldKey];
+    final oldFocusNode = _fieldNameFocusNodes[oldKey];
+    
+    if (oldValueController != null && oldNameController != null && oldFocusNode != null) {
+      setState(() {
+        // Update the field name in the dynamic fields list
+        _dynamicFields[index] = {
+          'key': newKey,
+          'value': oldValueController.text
+        };
+        
+        // Update the controllers map
+        _fieldsControllers[newKey] = oldValueController;
+        _fieldNameControllers[newKey] = oldNameController;
+        _fieldNameFocusNodes[newKey] = oldFocusNode;
+        
+        // Handle password field state
+        if (_isPasswordField(oldKey)) {
+          _showPasswordStates[newKey] = _showPasswordStates[oldKey] ?? false;
+          _showPasswordStates.remove(oldKey);
+        }
+        
+        // Remove old entries
+        _fieldsControllers.remove(oldKey);
+        _fieldNameControllers.remove(oldKey);
+        _fieldNameFocusNodes.remove(oldKey);
+      });
+      
+      print('=== FIELD NAME CHANGE ===');
+      print('Old key: $oldKey');
+      print('New value: $newKey');
+      print('Current dynamic fields: $_dynamicFields');
+      print('Updated controllers:');
+      print('- Fields controllers: ${_fieldsControllers.keys}');
+      print('- Name controllers: ${_fieldNameControllers.keys}');
+    }
+  }
+
   Future<void> _saveCredential() async {
     if (_formKey.currentState!.validate()) {
       try {
         print('=== SAVING CREDENTIAL ===');
         print('Is editing mode: $_isEditing');
+        
+        // Update any pending field name changes
+        for (int i = 0; i < _dynamicFields.length; i++) {
+          final field = _dynamicFields[i];
+          final oldKey = field['key']!;
+          final newKey = _fieldNameControllers[oldKey]?.text ?? oldKey;
+          
+          if (newKey != oldKey) {
+            print('Updating field name before save: $oldKey -> $newKey');
+            _updateFieldName(oldKey, newKey, i);
+          }
+        }
         
         // Collect all field values
         final Map<String, String> fields = {};
@@ -248,7 +317,7 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
       ),
     );
   }
-  
+
   Widget _buildTitleField() {
     return TextFormField(
       controller: _titleController,
@@ -264,7 +333,7 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
       },
     );
   }
-  
+
   Widget _buildCategoryDropdown() {
     return DropdownButtonFormField<String>(
       decoration: const InputDecoration(
@@ -290,7 +359,7 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
       },
     );
   }
-  
+
   Widget _buildFamilyMemberDropdown() {
     final dataProvider = Provider.of<DataProvider>(context);
     final familyMembers = dataProvider.familyMembers;
@@ -321,7 +390,7 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
       },
     );
   }
-  
+
   Widget _buildFieldsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -345,6 +414,7 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
           children: List.generate(_dynamicFields.length, (index) {
             final field = _dynamicFields[index];
             final key = field['key']!;
+            final isPassword = _isPasswordField(key);
             
             return Padding(
               key: ValueKey('field-$index-$key'),
@@ -356,41 +426,22 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
                     flex: 2,
                     child: TextFormField(
                       controller: _fieldNameControllers[key],
+                      focusNode: _fieldNameFocusNodes[key],
                       decoration: const InputDecoration(
                         labelText: 'Field Name',
                         border: OutlineInputBorder(),
                       ),
-                      onChanged: (value) {
+                      onEditingComplete: () {
+                        final newKey = _fieldNameControllers[key]?.text ?? key;
+                        print('newKey:  newKey $newKey  old key $key');
+
+                        if (newKey != key) {
+                          _updateFieldName(key, newKey, index);
+                        }
+                      },
+                      onFieldSubmitted: (value) {
                         if (value != key) {
-                          print('=== FIELD NAME CHANGE ===');
-                          print('Old key: $key');
-                          print('New value: $value');
-                          print('Current dynamic fields: $_dynamicFields');
-                          
-                          // Store the old controllers
-                          final oldValueController = _fieldsControllers[key];
-                          final oldNameController = _fieldNameControllers[key];
-                          
-                          if (oldValueController != null && oldNameController != null) {
-                            // Update the field name in the dynamic fields list
-                            _dynamicFields[index]['key'] = value;
-                            
-                            // Update the controllers map
-                            _fieldsControllers[value] = oldValueController;
-                            _fieldNameControllers[value] = oldNameController;
-                            
-                            // Remove old entries
-                            _fieldsControllers.remove(key);
-                            _fieldNameControllers.remove(key);
-                            
-                            // Update the controller text without triggering rebuild
-                            _fieldNameControllers[value]?.text = value;
-                            
-                            print('Updated dynamic fields: $_dynamicFields');
-                            print('Updated controllers:');
-                            print('- Fields controllers: ${_fieldsControllers.keys}');
-                            print('- Name controllers: ${_fieldNameControllers.keys}');
-                          }
+                          _updateFieldName(key, value, index);
                         }
                       },
                     ),
@@ -400,13 +451,23 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
                     flex: 3,
                     child: TextFormField(
                       controller: _fieldsControllers[key],
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Value',
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: isPassword ? IconButton(
+                          icon: Icon(
+                            _showPasswordStates[key] ?? false
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _showPasswordStates[key] = !(_showPasswordStates[key] ?? false);
+                            });
+                          },
+                        ) : null,
                       ),
-                      obscureText: key.toLowerCase().contains('password') || 
-                                  key.toLowerCase().contains('pin') ||
-                                  key.toLowerCase().contains('cvv'),
+                      obscureText: isPassword && !(_showPasswordStates[key] ?? false),
                     ),
                   ),
                   IconButton(
