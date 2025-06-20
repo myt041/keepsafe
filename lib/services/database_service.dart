@@ -159,13 +159,18 @@ class DatabaseService {
     List<Map<String, dynamic>> maps;
     
     if (familyMemberId != null) {
+      // Get credentials for specific family member
       maps = await db.query(
         'credentials',
         where: 'familyMemberId = ?',
         whereArgs: [familyMemberId],
       );
     } else {
-      maps = await db.query('credentials');
+      // Get only personal credentials (where familyMemberId is null)
+      maps = await db.query(
+        'credentials',
+        where: 'familyMemberId IS NULL',
+      );
     }
     
     final credentials = <Credential>[];

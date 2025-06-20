@@ -1,6 +1,6 @@
 name: keepsafe
 description: A secure app to store confidential information.
-version: 1.2.2+7
+version: 1.2.4+9
 
 environment:
   sdk: ">=2.18.0 <4.0.0"
@@ -41,6 +41,9 @@ dependencies:
   url_launcher: ^6.1.14
   crypto: ^3.0.3
   http: ^1.1.0
+
+  # check for new version
+  new_version_plus: ^0.1.1
 
 dev_dependencies:
   flutter_test:
