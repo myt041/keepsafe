@@ -198,6 +198,10 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.4),
+          width: 1.5,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -265,6 +269,10 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.4),
+          width: 1.5,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -300,6 +308,10 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                    width: 1.2,
+                  ),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -370,6 +382,10 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.4),
+          width: 1.5,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
