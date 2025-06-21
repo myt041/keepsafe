@@ -14,10 +14,15 @@ class CredentialCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: colorScheme.outline.withOpacity(0.4), // subtle but visible
+          width: 1.5,
+        ),
       ),
       child: InkWell(
         onTap: onTap,

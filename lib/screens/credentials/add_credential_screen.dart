@@ -338,11 +338,16 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
 
   Widget _buildBasicInfoCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: isDark ? 4 : 2,
       shadowColor: isDark ? Colors.black.withOpacity(0.5) : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: colorScheme.outline.withOpacity(0.4),
+          width: 1.5,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -480,11 +485,16 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
 
   Widget _buildFieldsSection() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: isDark ? 4 : 2,
       shadowColor: isDark ? Colors.black.withOpacity(0.5) : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: colorScheme.outline.withOpacity(0.4),
+          width: 1.5,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -537,6 +547,10 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
                   margin: const EdgeInsets.only(bottom: 16.0),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(
+                      color: colorScheme.outline.withOpacity(0.3),
+                      width: 1.2,
+                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
