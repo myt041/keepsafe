@@ -68,9 +68,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addNewCredential() {
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const AddCredentialScreen(),
+        builder: (_) => AddCredentialScreen(
+          selectedFamilyMemberId: dataProvider.selectedFamilyMemberId,
+        ),
       ),
     );
   }
@@ -206,7 +209,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildFamilySelector() {
     final dataProvider = Provider.of<DataProvider>(context);
     final selectedFamilyId = dataProvider.selectedFamilyMemberId;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Container(
       margin: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 0.0),
@@ -248,11 +250,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 
                 // Family members
                 ...dataProvider.familyMembers.map((member) {
+                  // Only use photoUrl if it's a local file path, otherwise use null for initials
+                  final String? localPhotoUrl = member.photoUrl != null && 
+                      member.photoUrl!.isNotEmpty && 
+                      member.photoUrl!.startsWith('/') 
+                      ? member.photoUrl 
+                      : null;
+                  
                   return _buildFamilyItem(
                     name: member.name.split(' ')[0],
                     isSelected: selectedFamilyId == member.id,
                     onTap: () => _onFamilyMemberSelected(member.id),
-                    photoUrl: member.photoUrl,
+                    photoUrl: localPhotoUrl,
                     memberName: member.name,
                   );
                 }),

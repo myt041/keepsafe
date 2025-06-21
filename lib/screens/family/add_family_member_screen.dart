@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:keepsafe/models/family_member.dart';
 import 'package:keepsafe/providers/data_provider.dart';
-import 'package:keepsafe/utils/theme.dart';
 import 'package:keepsafe/widgets/family_avatar.dart';
 
 class AddFamilyMemberScreen extends StatefulWidget {
@@ -61,17 +59,12 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
 
   Future<void> _saveFamily() async {
     if (_formKey.currentState!.validate()) {
-      // Generate a default avatar URL if none exists
-      String? avatarUrl = _photoUrl;
-      if (avatarUrl == null || avatarUrl.isEmpty) {
-        avatarUrl = _getAvatarUrl(_nameController.text);
-      }
-      
+      // Use null for photoUrl to let FamilyAvatar handle initials generation
       final member = FamilyMember(
         id: _isEditing ? widget.memberToEdit!.id : null,
         name: _nameController.text,
         relationship: _relationshipController.text,
-        photoUrl: avatarUrl,
+        photoUrl: _photoUrl, // Keep existing photo if available, otherwise null
       );
       
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
@@ -84,104 +77,6 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
       
       if (mounted) {
         Navigator.of(context).pop();
-      }
-    }
-  }
-  
-  String _getAvatarUrl(String name) {
-    // Properly encode the name for URL
-    final encodedName = Uri.encodeComponent(name.trim());
-    return 'https://ui-avatars.com/api/?name=$encodedName&size=200&background=random';
-  }
-  
-  Future<void> _selectPhoto() async {
-    final ImagePicker picker = ImagePicker();
-    
-    final ImageSource? source = await showDialog<ImageSource>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Photo'),
-        content: const Text('Choose how you want to add a photo'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(ImageSource.camera),
-            child: const Text('TAKE PHOTO'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(ImageSource.gallery),
-            child: const Text('FROM GALLERY'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('CANCEL'),
-          ),
-        ],
-      ),
-    );
-    
-    if (source == null) return;
-    
-    try {
-      // For now, let's use a placeholder image to avoid platform-specific issues
-      if (source == ImageSource.camera) {
-        setState(() {
-          _photoUrl = _getAvatarUrl(_nameController.text);
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Camera functionality will be available in the next update')),
-        );
-        return;
-      }
-      
-      // For gallery selection, use a placeholder for now
-      setState(() {
-        _photoUrl = _getAvatarUrl(_nameController.text);
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gallery selection will be available in the next update')),
-      );
-      
-      // Commented out for now to avoid the platform exception
-      /*
-      final XFile? image = await picker.pickImage(
-        source: source,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
-      );
-      
-      if (image == null) return;
-      
-      // Get the documents directory
-      final Directory appDir = await path_provider.getApplicationDocumentsDirectory();
-      final String familyImagesDir = path.join(appDir.path, 'family_images');
-      
-      // Create the directory if it doesn't exist
-      final Directory familyDir = Directory(familyImagesDir);
-      if (!await familyDir.exists()) {
-        await familyDir.create(recursive: true);
-      }
-      
-      // Generate a unique filename using timestamp and original file extension
-      final String fileName = 'family_${DateTime.now().millisecondsSinceEpoch}${path.extension(image.path)}';
-      final String localPath = path.join(familyImagesDir, fileName);
-      
-      // Copy the image to the app's documents directory
-      final File localImage = File(localPath);
-      await localImage.writeAsBytes(await image.readAsBytes());
-      
-      // Update state with the local file path
-      setState(() {
-        _photoUrl = localImage.path;
-      });
-      */
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to select photo: ${e.toString()}')),
-        );
       }
     }
   }
@@ -261,7 +156,6 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
   }
   
   Widget _buildPhotoSelector() {
-    final hasPhoto = _photoUrl != null && _photoUrl!.isNotEmpty;
     final displayName = _nameController.text.isNotEmpty
         ? _nameController.text
         : 'Family';
@@ -269,29 +163,14 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
     return Column(
       children: [
         GestureDetector(
-          onTap: _selectPhoto,
-          child: hasPhoto
-              ? FamilyAvatar(
-                  name: displayName,
-                  photoUrl: _photoUrl,
-                  size: 100,
-                )
-              : CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                  child: Icon(
-                    Icons.person,
-                    size: 50,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
+          // onTap: _selectPhoto,
+          child: FamilyAvatar(
+            name: displayName,
+            photoUrl: _photoUrl,
+            size: 100,
+          ),
         ),
         const SizedBox(height: 8),
-        TextButton.icon(
-          onPressed: _selectPhoto,
-          icon: const Icon(Icons.camera_alt),
-          label: Text(hasPhoto ? 'Change Photo' : 'Add Photo'),
-        ),
       ],
     );
   }
@@ -312,12 +191,8 @@ class _AddFamilyMemberScreenState extends State<AddFamilyMemberScreen> {
         return null;
       },
       onChanged: (_) {
-        // If we have a generated photo URL, update it when the name changes
-        if (_photoUrl != null && _photoUrl!.contains('ui-avatars.com')) {
-          setState(() {
-            _photoUrl = _getAvatarUrl(_nameController.text);
-          });
-        }
+        // Trigger rebuild to update the avatar display
+        setState(() {});
       },
     );
   }

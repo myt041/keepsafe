@@ -107,11 +107,11 @@ class _CredentialDetailsScreenState extends State<CredentialDetailsScreen> {
     Clipboard.setData(ClipboardData(text: value));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
+        content: const Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            const Text('Copied to clipboard'),
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 8),
+            Text('Copied to clipboard'),
           ],
         ),
         behavior: SnackBarBehavior.floating,
@@ -538,11 +538,11 @@ class _SecretFieldWidgetState extends State<_SecretFieldWidget> {
             Clipboard.setData(ClipboardData(text: widget.value));
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Row(
+                content: const Row(
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.white),
-                    const SizedBox(width: 8),
-                    const Text('Copied to clipboard'),
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('Copied to clipboard'),
                   ],
                 ),
                 behavior: SnackBarBehavior.floating,

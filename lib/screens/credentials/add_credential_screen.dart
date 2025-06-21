@@ -5,10 +5,12 @@ import 'package:keepsafe/providers/data_provider.dart';
 
 class AddCredentialScreen extends StatefulWidget {
   final Credential? credentialToEdit;
+  final int? selectedFamilyMemberId;
 
   const AddCredentialScreen({
     Key? key,
     this.credentialToEdit,
+    this.selectedFamilyMemberId,
   }) : super(key: key);
 
   @override
@@ -33,20 +35,12 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
     super.initState();
     
     if (_isEditing) {
-      print('=== EDIT MODE INITIALIZATION ===');
-      print('Credential to edit: ${widget.credentialToEdit?.toMap()}');
       // Fill form with data from the credential being edited
       final credential = widget.credentialToEdit!;
       
       _titleController.text = credential.title;
       _selectedCategory = credential.category;
       _selectedFamilyMemberId = credential.familyMemberId;
-      
-      print('Initialized with:');
-      print('- Title: ${credential.title}');
-      print('- Category: ${credential.category}');
-      print('- Family Member ID: ${credential.familyMemberId}');
-      print('- Fields: ${credential.fields}');
       
       // Setup dynamic fields based on credential type
       if (credential.fields.isEmpty) {
@@ -64,9 +58,9 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
           }
         });
       }
-      print('Dynamic fields initialized: $_dynamicFields');
     } else {
       // Initialize with default fields based on category
+      _selectedFamilyMemberId = widget.selectedFamilyMemberId;
       _updateDynamicFields();
     }
   }
@@ -149,20 +143,59 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
            lowerFieldName.contains('cvv');
   }
 
-  void _addNewField() {
+  void _addNewField() async {
+    // Show dialog to ask user about field type
+    final String? fieldType = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add New Field'),
+          content: const Text('What type of field would you like to add?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop('normal'),
+              child: const Text('Normal Field'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop('password'),
+              child: const Text('Password Field'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (fieldType == null) return; // User cancelled
+
     setState(() {
-      final newKey = 'Field ${_dynamicFields.length + 1}';
+      final newKey = fieldType == 'password' 
+          ? 'Password ${_dynamicFields.length + 1}'
+          : 'Field ${_dynamicFields.length + 1}';
+      
       _dynamicFields.add({'key': newKey, 'value': ''});
       _fieldsControllers[newKey] = TextEditingController();
       _fieldNameControllers[newKey] = TextEditingController(text: newKey);
       _fieldNameFocusNodes[newKey] = FocusNode();
+      
+      // Initialize password field state if it's a password field
+      if (fieldType == 'password') {
+        _showPasswordStates[newKey] = false;
+      }
+    });
+
+    // Focus on the newly created field name after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final newKey = _dynamicFields.last['key']!;
+      _fieldNameFocusNodes[newKey]?.requestFocus();
     });
   }
 
   void _removeField(int index) {
     final key = _dynamicFields[index]['key']!;
-    print('Deleting field at index $index: $key');
-    
     setState(() {
       _fieldsControllers[key]?.dispose();
       _fieldsControllers.remove(key);
@@ -206,23 +239,12 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
         _fieldNameControllers.remove(oldKey);
         _fieldNameFocusNodes.remove(oldKey);
       });
-      
-      print('=== FIELD NAME CHANGE ===');
-      print('Old key: $oldKey');
-      print('New value: $newKey');
-      print('Current dynamic fields: $_dynamicFields');
-      print('Updated controllers:');
-      print('- Fields controllers: ${_fieldsControllers.keys}');
-      print('- Name controllers: ${_fieldNameControllers.keys}');
     }
   }
 
   Future<void> _saveCredential() async {
     if (_formKey.currentState!.validate()) {
       try {
-        print('=== SAVING CREDENTIAL ===');
-        print('Is editing mode: $_isEditing');
-        
         // Update any pending field name changes
         for (int i = 0; i < _dynamicFields.length; i++) {
           final field = _dynamicFields[i];
@@ -230,7 +252,6 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
           final newKey = _fieldNameControllers[oldKey]?.text ?? oldKey;
           
           if (newKey != oldKey) {
-            print('Updating field name before save: $oldKey -> $newKey');
             _updateFieldName(oldKey, newKey, i);
           }
         }
@@ -245,8 +266,6 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
           }
         }
         
-        print('Collected fields: $fields');
-        
         // Create credential object
         final now = DateTime.now();
         final credential = Credential(
@@ -260,25 +279,16 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
           isFavorite: _isEditing ? widget.credentialToEdit?.isFavorite ?? false : false,
         );
         
-        print('Credential object created: ${credential.toMap()}');
-        
         // Save to database via provider
         final dataProvider = Provider.of<DataProvider>(context, listen: false);
         if (_isEditing) {
-          print('Updating existing credential...');
           await dataProvider.updateCredential(credential);
-          print('Credential updated successfully');
         } else {
-          print('Adding new credential...');
           await dataProvider.addCredential(credential);
-          print('Credential added successfully');
         }
         
         Navigator.pop(context);
       } catch (e, stackTrace) {
-        print('=== ERROR SAVING CREDENTIAL ===');
-        print('Error: $e');
-        print('Stack trace: $stackTrace');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving credential: ${e.toString()}')),
         );
