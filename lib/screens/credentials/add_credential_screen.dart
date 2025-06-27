@@ -5,10 +5,12 @@ import 'package:keepsafe/providers/data_provider.dart';
 
 class AddCredentialScreen extends StatefulWidget {
   final Credential? credentialToEdit;
+  final int? selectedFamilyMemberId;
 
   const AddCredentialScreen({
     Key? key,
     this.credentialToEdit,
+    this.selectedFamilyMemberId,
   }) : super(key: key);
 
   @override
@@ -33,20 +35,12 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
     super.initState();
     
     if (_isEditing) {
-      print('=== EDIT MODE INITIALIZATION ===');
-      print('Credential to edit: ${widget.credentialToEdit?.toMap()}');
       // Fill form with data from the credential being edited
       final credential = widget.credentialToEdit!;
       
       _titleController.text = credential.title;
       _selectedCategory = credential.category;
       _selectedFamilyMemberId = credential.familyMemberId;
-      
-      print('Initialized with:');
-      print('- Title: ${credential.title}');
-      print('- Category: ${credential.category}');
-      print('- Family Member ID: ${credential.familyMemberId}');
-      print('- Fields: ${credential.fields}');
       
       // Setup dynamic fields based on credential type
       if (credential.fields.isEmpty) {
@@ -64,9 +58,9 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
           }
         });
       }
-      print('Dynamic fields initialized: $_dynamicFields');
     } else {
       // Initialize with default fields based on category
+      _selectedFamilyMemberId = widget.selectedFamilyMemberId;
       _updateDynamicFields();
     }
   }
@@ -149,20 +143,59 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
            lowerFieldName.contains('cvv');
   }
 
-  void _addNewField() {
+  void _addNewField() async {
+    // Show dialog to ask user about field type
+    final String? fieldType = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add New Field'),
+          content: const Text('What type of field would you like to add?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop('normal'),
+              child: const Text('Normal Field'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop('password'),
+              child: const Text('Password Field'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (fieldType == null) return; // User cancelled
+
     setState(() {
-      final newKey = 'Field ${_dynamicFields.length + 1}';
+      final newKey = fieldType == 'password' 
+          ? 'Password ${_dynamicFields.length + 1}'
+          : 'Field ${_dynamicFields.length + 1}';
+      
       _dynamicFields.add({'key': newKey, 'value': ''});
       _fieldsControllers[newKey] = TextEditingController();
       _fieldNameControllers[newKey] = TextEditingController(text: newKey);
       _fieldNameFocusNodes[newKey] = FocusNode();
+      
+      // Initialize password field state if it's a password field
+      if (fieldType == 'password') {
+        _showPasswordStates[newKey] = false;
+      }
+    });
+
+    // Focus on the newly created field name after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final newKey = _dynamicFields.last['key']!;
+      _fieldNameFocusNodes[newKey]?.requestFocus();
     });
   }
 
   void _removeField(int index) {
     final key = _dynamicFields[index]['key']!;
-    print('Deleting field at index $index: $key');
-    
     setState(() {
       _fieldsControllers[key]?.dispose();
       _fieldsControllers.remove(key);
@@ -206,23 +239,12 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
         _fieldNameControllers.remove(oldKey);
         _fieldNameFocusNodes.remove(oldKey);
       });
-      
-      print('=== FIELD NAME CHANGE ===');
-      print('Old key: $oldKey');
-      print('New value: $newKey');
-      print('Current dynamic fields: $_dynamicFields');
-      print('Updated controllers:');
-      print('- Fields controllers: ${_fieldsControllers.keys}');
-      print('- Name controllers: ${_fieldNameControllers.keys}');
     }
   }
 
   Future<void> _saveCredential() async {
     if (_formKey.currentState!.validate()) {
       try {
-        print('=== SAVING CREDENTIAL ===');
-        print('Is editing mode: $_isEditing');
-        
         // Update any pending field name changes
         for (int i = 0; i < _dynamicFields.length; i++) {
           final field = _dynamicFields[i];
@@ -230,7 +252,6 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
           final newKey = _fieldNameControllers[oldKey]?.text ?? oldKey;
           
           if (newKey != oldKey) {
-            print('Updating field name before save: $oldKey -> $newKey');
             _updateFieldName(oldKey, newKey, i);
           }
         }
@@ -245,8 +266,6 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
           }
         }
         
-        print('Collected fields: $fields');
-        
         // Create credential object
         final now = DateTime.now();
         final credential = Credential(
@@ -260,25 +279,16 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
           isFavorite: _isEditing ? widget.credentialToEdit?.isFavorite ?? false : false,
         );
         
-        print('Credential object created: ${credential.toMap()}');
-        
         // Save to database via provider
         final dataProvider = Provider.of<DataProvider>(context, listen: false);
         if (_isEditing) {
-          print('Updating existing credential...');
           await dataProvider.updateCredential(credential);
-          print('Credential updated successfully');
         } else {
-          print('Adding new credential...');
           await dataProvider.addCredential(credential);
-          print('Credential added successfully');
         }
         
         Navigator.pop(context);
       } catch (e, stackTrace) {
-        print('=== ERROR SAVING CREDENTIAL ===');
-        print('Error: $e');
-        print('Stack trace: $stackTrace');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving credential: ${e.toString()}')),
         );
@@ -291,28 +301,82 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Credential' : 'Add Credential'),
+        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildTitleField(),
-              const SizedBox(height: 16),
-              _buildCategoryDropdown(),
-              const SizedBox(height: 16),
-              _buildFamilyMemberDropdown(),
-              const SizedBox(height: 24),
-              _buildFieldsSection(),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _saveCredential,
-                child: Text(_isEditing ? 'Update' : 'Save'),
-              ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.surface,
+              Theme.of(context).colorScheme.surface.withOpacity(0.8),
             ],
           ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildBasicInfoCard(),
+                const SizedBox(height: 24),
+                _buildFieldsSection(),
+                const SizedBox(height: 32),
+                _buildSaveButton(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBasicInfoCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: isDark ? 4 : 2,
+      shadowColor: isDark ? Colors.black.withOpacity(0.5) : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: colorScheme.outline.withOpacity(0.4),
+          width: 1.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Basic Information',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _buildTitleField(),
+            const SizedBox(height: 16),
+            _buildCategoryDropdown(),
+            const SizedBox(height: 16),
+            _buildFamilyMemberDropdown(),
+          ],
         ),
       ),
     );
@@ -321,9 +385,16 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
   Widget _buildTitleField() {
     return TextFormField(
       controller: _titleController,
-      decoration: const InputDecoration(
+      textCapitalization: TextCapitalization.sentences,
+      decoration: InputDecoration(
         labelText: 'Title',
-        border: OutlineInputBorder(),
+        hintText: 'Enter a title for this credential',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        prefixIcon: const Icon(Icons.title),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surface,
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {
@@ -336,15 +407,24 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
 
   Widget _buildCategoryDropdown() {
     return DropdownButtonFormField<String>(
-      decoration: const InputDecoration(
+      isExpanded: true,
+      decoration: InputDecoration(
         labelText: 'Category',
-        border: OutlineInputBorder(),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        prefixIcon: const Icon(Icons.category),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surface,
       ),
       value: _selectedCategory,
       items: Credential.CATEGORIES.map((category) {
         return DropdownMenuItem(
           value: category,
-          child: Text(category),
+          child: Text(
+            category,
+            overflow: TextOverflow.ellipsis,
+          ),
         );
       }).toList(),
       onChanged: (value) {
@@ -365,21 +445,33 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
     final familyMembers = dataProvider.familyMembers;
     
     return DropdownButtonFormField<int?>(
-      decoration: const InputDecoration(
+      isExpanded: true,
+      decoration: InputDecoration(
         labelText: 'Family Member',
-        border: OutlineInputBorder(),
         hintText: 'Select family member (optional)',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        prefixIcon: const Icon(Icons.person),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surface,
       ),
       value: _selectedFamilyMemberId,
       items: [
         const DropdownMenuItem(
           value: null,
-          child: Text('Me (Personal)'),
+          child: Text(
+            'Me (Personal)',
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         ...familyMembers.map((member) {
           return DropdownMenuItem(
             value: member.id,
-            child: Text(member.name),
+            child: Text(
+              member.name,
+              overflow: TextOverflow.ellipsis,
+            ),
           );
         }),
       ],
@@ -392,98 +484,194 @@ class _AddCredentialScreenState extends State<AddCredentialScreen> {
   }
 
   Widget _buildFieldsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: isDark ? 4 : 2,
+      shadowColor: isDark ? Colors.black.withOpacity(0.5) : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: colorScheme.outline.withOpacity(0.4),
+          width: 1.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Fields',
-              style: Theme.of(context).textTheme.titleMedium,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.list_alt,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Fields',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                TextButton.icon(
+                  onPressed: _addNewField,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Field'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            TextButton.icon(
-              onPressed: _addNewField,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Field'),
+            const SizedBox(height: 20),
+            Column(
+              children: List.generate(_dynamicFields.length, (index) {
+                final field = _dynamicFields[index];
+                final key = field['key']!;
+                final isPassword = _isPasswordField(key);
+                
+                return Card(
+                  elevation: isDark ? 3 : 1,
+                  shadowColor: isDark ? Colors.black.withOpacity(0.4) : null,
+                  margin: const EdgeInsets.only(bottom: 16.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(
+                      color: colorScheme.outline.withOpacity(0.3),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _fieldNameControllers[key],
+                                focusNode: _fieldNameFocusNodes[key],
+                                textCapitalization: TextCapitalization.words,
+                                decoration: InputDecoration(
+                                  labelText: 'Field Name',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  prefixIcon: const Icon(Icons.label),
+                                  filled: true,
+                                  fillColor: Theme.of(context).colorScheme.surface,
+                                ),
+                                onEditingComplete: () {
+                                  final newKey = _fieldNameControllers[key]?.text ?? key;
+                                  if (newKey != key) {
+                                    _updateFieldName(key, newKey, index);
+                                  }
+                                },
+                                onFieldSubmitted: (value) {
+                                  if (value != key) {
+                                    _updateFieldName(key, value, index);
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              color: Theme.of(context).colorScheme.error,
+                              tooltip: 'Delete field',
+                              onPressed: () => _removeField(index),
+                              style: IconButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.errorContainer.withOpacity(0.1),
+                                padding: const EdgeInsets.all(12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  side: BorderSide(
+                                    color: Theme.of(context).colorScheme.error.withOpacity(0.2),
+                                    width: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _fieldsControllers[key],
+                          decoration: InputDecoration(
+                            labelText: 'Value',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            prefixIcon: const Icon(Icons.edit),
+                            suffixIcon: isPassword ? IconButton(
+                              icon: Icon(
+                                _showPasswordStates[key] ?? false
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _showPasswordStates[key] = !(_showPasswordStates[key] ?? false);
+                                });
+                              },
+                            ) : null,
+                            filled: true,
+                            fillColor: Theme.of(context).colorScheme.surface,
+                          ),
+                          obscureText: isPassword && !(_showPasswordStates[key] ?? false),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        Column(
-          children: List.generate(_dynamicFields.length, (index) {
-            final field = _dynamicFields[index];
-            final key = field['key']!;
-            final isPassword = _isPasswordField(key);
-            
-            return Padding(
-              key: ValueKey('field-$index-$key'),
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: TextFormField(
-                      controller: _fieldNameControllers[key],
-                      focusNode: _fieldNameFocusNodes[key],
-                      decoration: const InputDecoration(
-                        labelText: 'Field Name',
-                        border: OutlineInputBorder(),
-                      ),
-                      onEditingComplete: () {
-                        final newKey = _fieldNameControllers[key]?.text ?? key;
-                        print('newKey:  newKey $newKey  old key $key');
+      ),
+    );
+  }
 
-                        if (newKey != key) {
-                          _updateFieldName(key, newKey, index);
-                        }
-                      },
-                      onFieldSubmitted: (value) {
-                        if (value != key) {
-                          _updateFieldName(key, value, index);
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 3,
-                    child: TextFormField(
-                      controller: _fieldsControllers[key],
-                      decoration: InputDecoration(
-                        labelText: 'Value',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: isPassword ? IconButton(
-                          icon: Icon(
-                            _showPasswordStates[key] ?? false
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _showPasswordStates[key] = !(_showPasswordStates[key] ?? false);
-                            });
-                          },
-                        ) : null,
-                      ),
-                      obscureText: isPassword && !(_showPasswordStates[key] ?? false),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete),
-                    tooltip: 'Delete field at position $index',
-                    onPressed: () {
-                      print('Deleting field at index $index: $key');
-                      _removeField(index);
-                    },
-                  ),
-                ],
-              ),
-            );
-          }),
+  Widget _buildSaveButton() {
+    return ElevatedButton(
+      onPressed: _saveCredential,
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
-      ],
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _isEditing ? Icons.save : Icons.add_circle_outline,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _isEditing ? 'Update' : 'Save',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 } 

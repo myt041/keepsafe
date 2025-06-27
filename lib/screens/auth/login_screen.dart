@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     // Increase delay for biometric check to ensure system is fully ready
-    Future.delayed(const Duration(seconds: 1), _checkBiometrics);
+    Future.delayed(const Duration(microseconds: 200), _checkBiometrics);
   }
 
   Future<void> _checkBiometrics() async {
@@ -168,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: 100,
                     height: 100,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor,
+                      color: Theme.of(context).colorScheme.primary,
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: const Icon(

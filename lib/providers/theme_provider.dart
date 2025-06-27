@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ThemeProvider with ChangeNotifier {
   static const String _themePrefsKey = 'theme_mode';
   
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.dark;
   
   ThemeProvider() {
     _loadThemePreference();
@@ -31,11 +31,12 @@ class ThemeProvider with ChangeNotifier {
       if (themeIndex != null) {
         _themeMode = ThemeMode.values[themeIndex];
       }
+      // If no saved preference, keep the default (ThemeMode.dark)
       
       notifyListeners();
     } catch (e) {
-      // If there's an error, use system theme
-      _themeMode = ThemeMode.system;
+      // If there's an error, use dark theme as default
+      _themeMode = ThemeMode.dark;
     }
   }
   

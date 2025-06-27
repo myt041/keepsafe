@@ -12,6 +12,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:keepsafe/utils/strings.dart';
+import 'package:keepsafe/widgets/family_avatar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -147,6 +148,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _connectUs,
                 ),
+                ListTile(
+                  leading: const Icon(Icons.palette_outlined),
+                  title: const Text('Migrate Avatar Colors'),
+                  subtitle: const Text('Reset and reassign family member colors'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _migrateAvatarColors,
+                ),
               ],
             ),
     );
@@ -157,10 +165,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.bold,
-          color: AppTheme.primaryColor,
+          color: Theme.of(context).colorScheme.primary,
         ),
       ),
     );
@@ -463,7 +471,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppTheme.primaryColor : null,
+              color: isSelected ? Theme.of(context).colorScheme.primary : null,
             ),
             const SizedBox(width: 16.0),
             Expanded(
@@ -474,7 +482,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title,
                     style: TextStyle(
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? AppTheme.primaryColor : null,
+                      color: isSelected ? Theme.of(context).colorScheme.primary : null,
                     ),
                   ),
                   Text(
@@ -485,9 +493,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             if (isSelected)
-              const Icon(
+              Icon(
                 Icons.check,
-                color: AppTheme.primaryColor,
+                color: Theme.of(context).colorScheme.primary,
               ),
           ],
         ),
@@ -800,6 +808,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       debugPrint('Error in connect us: $e');
       _showErrorDialog(AppStrings.couldNotLaunch.replaceAll('%s', 'connect options'));
+    }
+  }
+
+  Future<void> _migrateAvatarColors() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Migrate Avatar Colors'),
+          content: const Text(
+            'This will reset all family member avatar colors and reassign them with the new color system. '
+            'Each family member will get a unique color that will remain consistent. Continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('CANCEL'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('MIGRATE'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        // Reset all color assignments
+        await FamilyAvatar.resetAllColorAssignments();
+        
+        // Trigger a rebuild of the app to refresh all avatars
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Avatar colors migrated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Migration failed: ${e.toString()}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
     }
   }
 } 

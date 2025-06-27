@@ -14,10 +14,15 @@ class CredentialCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: colorScheme.outline.withOpacity(0.4), // subtle but visible
+          width: 1.5,
+        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -26,7 +31,7 @@ class CredentialCard extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              _buildIcon(),
+              _buildIcon(context),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -73,37 +78,34 @@ class CredentialCard extends StatelessWidget {
     );
   }
 
-  Widget _buildIcon() {
+  Widget _buildIcon(BuildContext context) {
     late IconData iconData;
-    late Color iconColor;
+    final colorScheme = Theme.of(context).colorScheme;
+    Color iconColor = colorScheme.primary;
+    Color bgColor = colorScheme.primary.withOpacity(0.1);
 
     switch (credential.category) {
       case Credential.CATEGORY_BANK:
-        iconData = Icons.account_balance;
-        iconColor = Colors.blue;
+        iconData = Icons.account_balance_wallet_rounded;
         break;
       case Credential.CATEGORY_CARD:
-        iconData = Icons.credit_card;
-        iconColor = Colors.green;
+        iconData = Icons.credit_card_rounded;
         break;
       case Credential.CATEGORY_WEBSITE:
-        iconData = Icons.language;
-        iconColor = Colors.purple;
+        iconData = Icons.public_rounded;
         break;
       case Credential.CATEGORY_APP:
-        iconData = Icons.apps;
-        iconColor = Colors.orange;
+        iconData = Icons.smartphone_rounded;
         break;
       default:
-        iconData = Icons.lock;
-        iconColor = AppTheme.primaryColor;
+        iconData = Icons.folder_special_rounded;
     }
 
     return Container(
       width: 50,
       height: 50,
       decoration: BoxDecoration(
-        color: iconColor.withOpacity(0.1),
+        color: bgColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Center(

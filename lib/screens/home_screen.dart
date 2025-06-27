@@ -68,9 +68,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addNewCredential() {
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const AddCredentialScreen(),
+        builder: (_) => AddCredentialScreen(
+          selectedFamilyMemberId: dataProvider.selectedFamilyMemberId,
+        ),
       ),
     );
   }
@@ -116,24 +119,53 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('KeepSafe'),
+        title: Row(
+          children: [
+            Icon(
+              Icons.vpn_key,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            const Text('KeepSafe'),
+          ],
+        ),
+        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.settings_outlined),
             onPressed: _openSettings,
+            tooltip: 'Settings',
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_outlined),
             onPressed: _logout,
+            tooltip: 'Logout',
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(),
-      floatingActionButton: FloatingActionButton(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.surface,
+              Theme.of(context).colorScheme.surface.withOpacity(0.8),
+            ],
+          ),
+        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _buildBody(),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _addNewCredential,
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Credential'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
       ),
     );
   }
@@ -144,15 +176,28 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildSearchBar(),
         _buildFamilySelector(),
         _buildCategorySelector(),
-        const Divider(),
+        const Divider(height: 1),
         Expanded(child: _buildCredentialsList()),
       ],
     );
   }
 
   Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 0.0),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.surfaceVariant
+            : Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: CustomSearchBar(
         controller: _searchController,
         onChanged: _onSearchChanged,
@@ -165,25 +210,35 @@ class _HomeScreenState extends State<HomeScreen> {
     final dataProvider = Provider.of<DataProvider>(context);
     final selectedFamilyId = dataProvider.selectedFamilyMemberId;
     
-    return SizedBox(
-      height: 110,
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 0.0),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text(
-              'Family',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              Icon(
+                Icons.people_outline,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
               ),
-            ),
+              const SizedBox(width: 6),
+              Text(
+                'Family',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Expanded(
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 60,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
               children: [
                 // User's own credentials option
                 _buildFamilyItem(
@@ -195,11 +250,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 
                 // Family members
                 ...dataProvider.familyMembers.map((member) {
+                  // Only use photoUrl if it's a local file path, otherwise use null for initials
+                  final String? localPhotoUrl = member.photoUrl != null && 
+                      member.photoUrl!.isNotEmpty && 
+                      member.photoUrl!.startsWith('/') 
+                      ? member.photoUrl 
+                      : null;
+                  
                   return _buildFamilyItem(
                     name: member.name.split(' ')[0],
                     isSelected: selectedFamilyId == member.id,
                     onTap: () => _onFamilyMemberSelected(member.id),
-                    photoUrl: member.photoUrl,
+                    photoUrl: localPhotoUrl,
                     memberName: member.name,
                   );
                 }),
@@ -230,43 +292,59 @@ class _HomeScreenState extends State<HomeScreen> {
     bool useGrayBackground = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
       child: GestureDetector(
         onTap: onTap,
         child: SizedBox(
-          width: 50,
-          height: 74,
+          width: 45,
+          height: 60,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null)
                 Container(
-                  width: 50,
-                  height: 50,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: useGrayBackground
-                        ? Colors.grey.withOpacity(0.2)
+                        ? Theme.of(context).colorScheme.surfaceVariant
                         : isSelected
-                            ? AppTheme.primaryColor
-                            : AppTheme.primaryColor.withOpacity(0.3),
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.surfaceVariant,
                     shape: BoxShape.circle,
+                    border: isSelected
+                        ? Border.all(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2,
+                          )
+                        : null,
                   ),
                   child: Icon(
                     icon,
-                    color: isSelected || useGrayBackground ? Colors.white : Colors.white70,
+                    size: 18,
+                    color: useGrayBackground
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : isSelected
+                            ? Theme.of(context).colorScheme.onPrimary
+                            : Theme.of(context).colorScheme.primary,
                   ),
                 )
               else if (memberName != null)
                 FamilyAvatar(
                   name: memberName,
                   photoUrl: photoUrl,
-                  size: 50,
+                  size: 38,
                   isSelected: isSelected,
                 ),
               const SizedBox(height: 4),
               Text(
                 name,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
@@ -282,33 +360,83 @@ class _HomeScreenState extends State<HomeScreen> {
     final dataProvider = Provider.of<DataProvider>(context);
     final selectedCategory = dataProvider.selectedCategory;
     
-    return SizedBox(
-      height: 50,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // All categories option
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            child: ChoiceChip(
-              label: const Text('All'),
-              selected: selectedCategory == null,
-              onSelected: (_) => _onCategorySelected(null),
+          Row(
+            children: [
+              Icon(
+                Icons.category_outlined,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Categories',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 32,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              children: [
+                // All categories option
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: ChoiceChip(
+                    label: const Text('All'),
+                    selected: selectedCategory == null,
+                    onSelected: (_) => _onCategorySelected(null),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                    selectedColor: Theme.of(context).colorScheme.primary,
+                    labelStyle: TextStyle(
+                      fontSize: 12,
+                      color: selectedCategory == null
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: selectedCategory == null ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                
+                // Category options
+                ...Credential.CATEGORIES.map((category) {
+                  final isSelected = selectedCategory == category;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: ChoiceChip(
+                      label: Text(category),
+                      selected: isSelected,
+                      onSelected: (_) => _onCategorySelected(category),
+                      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                      selectedColor: Theme.of(context).colorScheme.primary,
+                      labelStyle: TextStyle(
+                        fontSize: 12,
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.onPrimary
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  );
+                }),
+              ],
             ),
           ),
-          
-          // Category options
-          ...Credential.CATEGORIES.map((category) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: ChoiceChip(
-                label: Text(category),
-                selected: selectedCategory == category,
-                onSelected: (_) => _onCategorySelected(category),
-              ),
-            );
-          }),
         ],
       ),
     );
