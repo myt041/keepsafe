@@ -8,11 +8,14 @@ import 'package:local_auth/local_auth.dart';
 import 'package:keepsafe/providers/data_provider.dart';
 import 'package:keepsafe/screens/splash_screen.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:keepsafe/utils/strings.dart';
 import 'package:keepsafe/widgets/family_avatar.dart';
+import 'package:keepsafe/widgets/backup_password_dialog.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -24,11 +27,20 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = false;
   PackageInfo? _packageInfo;
+  bool _showUpgradeBanner = false;
 
   @override
   void initState() {
     super.initState();
     _initPackageInfo();
+    _checkUpgradeBanner();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Re-check banner when dependencies change (e.g., after data loads)
+    _checkUpgradeBanner();
   }
 
   Future<void> _initPackageInfo() async {
@@ -38,20 +50,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  Future<void> _checkUpgradeBanner() async {
+    final prefs = await SharedPreferences.getInstance();
+    final completed = prefs.getBool('hasCompletedBackupUpgrade') ?? false;
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    final hasData = dataProvider.credentials.isNotEmpty ||
+        dataProvider.familyMembers.isNotEmpty;
+    setState(() {
+      _showUpgradeBanner = !completed && hasData;
+    });
+  }
+
+  Future<void> _setUpgradeComplete() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hasCompletedBackupUpgrade', true);
+    setState(() {
+      _showUpgradeBanner = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     final hasBiometrics = authProvider.isBiometricsAvailable;
     final isBiometricsEnabled = authProvider.isBiometricsEnabled;
-    
+
     String biometricType = 'Biometric';
     IconData biometricIcon = Icons.fingerprint;
-    
+
     if (authProvider.availableBiometrics.contains(BiometricType.face)) {
       biometricType = 'Face ID';
       biometricIcon = Icons.face;
-    } else if (authProvider.availableBiometrics.contains(BiometricType.fingerprint)) {
+    } else if (authProvider.availableBiometrics
+        .contains(BiometricType.fingerprint)) {
       biometricType = 'Fingerprint';
       biometricIcon = Icons.fingerprint;
     }
@@ -62,98 +94,124 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16.0),
+          : Column(
               children: [
-                _buildSection(AppStrings.security),
-                if (hasBiometrics)
-                  SwitchListTile(
-                    title: Text(AppStrings.useBiometric.replaceAll('%s', biometricType)),
-                    subtitle: Text(AppStrings.enableBiometric.replaceAll('%s', biometricType)),
-                    value: isBiometricsEnabled,
-                    onChanged: _toggleBiometrics,
-                    secondary: Icon(biometricIcon),
+                if (_showUpgradeBanner)
+                  MaterialBanner(
+                    content: Text(AppStrings.upgradeBanner),
+                    actions: [
+                      TextButton(
+                        onPressed: _showUpgradeDialog,
+                        child: Text(AppStrings.upgradeNoticeAction),
+                      ),
+                      TextButton(
+                        onPressed: () =>
+                            setState(() => _showUpgradeBanner = false),
+                        child: Text(AppStrings.upgradeNoticeRemindMeLater),
+                      ),
+                    ],
                   ),
-                ListTile(
-                  leading: const Icon(Icons.pin),
-                  title: const Text(AppStrings.changePin),
-                  subtitle: const Text(AppStrings.updateSecurityPin),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _showChangePinDialog,
-                ),
-                const Divider(),
-                _buildSection(AppStrings.dataManagement),
-                ListTile(
-                  leading: const Icon(Icons.upload),
-                  title: const Text(AppStrings.exportData),
-                  subtitle: const Text(AppStrings.backupData),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _exportData,
-                ),
-                ListTile(
-                  leading: const Icon(Icons.download),
-                  title: const Text(AppStrings.importData),
-                  subtitle: const Text(AppStrings.restoreData),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _importData,
-                ),
-                ListTile(
-                  leading: const Icon(Icons.delete_outline),
-                  title: const Text(AppStrings.clearAllData),
-                  subtitle: const Text(AppStrings.deleteAllInfo),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _showClearDataDialog,
-                ),
-                const Divider(),
-                _buildSection(AppStrings.appSettings),
-                ListTile(
-                  leading: const Icon(Icons.brightness_6),
-                  title: const Text(AppStrings.theme),
-                  subtitle: Text(_getThemeModeName(themeProvider.themeMode)),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showThemeDialog(themeProvider),
-                ),
-                const Divider(),
-                _buildSection(AppStrings.about),
-                ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: const Text(AppStrings.appVersion),
-                  subtitle: Text(_packageInfo?.version ?? AppStrings.loading),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.share),
-                  title: const Text(AppStrings.shareApp),
-                  subtitle: const Text(AppStrings.tellAboutApp),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _shareApp,
-                ),
-                ListTile(
-                  leading: const Icon(Icons.star_outline),
-                  title: const Text(AppStrings.rateUs),
-                  subtitle: const Text(AppStrings.rateOnStore),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _rateApp,
-                ),
-                ListTile(
-                  leading: const Icon(Icons.privacy_tip_outlined),
-                  title: const Text(AppStrings.privacyPolicy),
-                  subtitle: const Text(AppStrings.viewPrivacyPolicy),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _viewPrivacyPolicy,
-                ),
-                ListTile(
-                  leading: const Icon(Icons.contact_support_outlined),
-                  title: const Text(AppStrings.connectUs),
-                  subtitle: const Text(AppStrings.sendFeedback),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _connectUs,
-                ),
-                ListTile(
-                  leading: const Icon(Icons.palette_outlined),
-                  title: const Text('Migrate Avatar Colors'),
-                  subtitle: const Text('Reset and reassign family member colors'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _migrateAvatarColors,
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(16.0),
+                    children: [
+                      _buildSection(AppStrings.security),
+                      if (hasBiometrics)
+                        SwitchListTile(
+                          title: Text(AppStrings.useBiometric
+                              .replaceAll('%s', biometricType)),
+                          subtitle: Text(AppStrings.enableBiometric
+                              .replaceAll('%s', biometricType)),
+                          value: isBiometricsEnabled,
+                          onChanged: _toggleBiometrics,
+                          secondary: Icon(biometricIcon),
+                        ),
+                      ListTile(
+                        leading: const Icon(Icons.pin),
+                        title: const Text(AppStrings.changePin),
+                        subtitle: const Text(AppStrings.updateSecurityPin),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _showChangePinDialog,
+                      ),
+                      const Divider(),
+                      _buildSection(AppStrings.dataManagement),
+                      ListTile(
+                        leading: const Icon(Icons.upload),
+                        title: const Text(AppStrings.exportData),
+                        subtitle: const Text(AppStrings.backupData),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _exportData,
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.download),
+                        title: const Text(AppStrings.importData),
+                        subtitle: const Text(AppStrings.restoreData),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _importData,
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.delete_outline),
+                        title: const Text(AppStrings.clearAllData),
+                        subtitle: const Text(AppStrings.deleteAllInfo),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _showClearDataDialog,
+                      ),
+                      const Divider(),
+                      _buildSection(AppStrings.appSettings),
+                      ListTile(
+                        leading: const Icon(Icons.brightness_6),
+                        title: const Text(AppStrings.theme),
+                        subtitle:
+                            Text(_getThemeModeName(themeProvider.themeMode)),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => _showThemeDialog(themeProvider),
+                      ),
+                      const Divider(),
+                      _buildSection(AppStrings.about),
+                      ListTile(
+                        leading: const Icon(Icons.info_outline),
+                        title: const Text(AppStrings.appVersion),
+                        subtitle:
+                            Text(_packageInfo?.version ?? AppStrings.loading),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.share),
+                        title: const Text(AppStrings.shareApp),
+                        subtitle: const Text(AppStrings.tellAboutApp),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _shareApp,
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.star_outline),
+                        title: const Text(AppStrings.rateUs),
+                        subtitle: const Text(AppStrings.rateOnStore),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _rateApp,
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.privacy_tip_outlined),
+                        title: const Text(AppStrings.privacyPolicy),
+                        subtitle: const Text(AppStrings.viewPrivacyPolicy),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _viewPrivacyPolicy,
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.contact_support_outlined),
+                        title: const Text(AppStrings.connectUs),
+                        subtitle: const Text(AppStrings.sendFeedback),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _connectUs,
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.palette_outlined),
+                        title: const Text('Migrate Avatar Colors'),
+                        subtitle: const Text(
+                            'Reset and reassign family member colors'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _migrateAvatarColors,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -176,14 +234,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _toggleBiometrics(bool value) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       await authProvider.toggleBiometrics(value);
-      
+
       if (value) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text(AppStrings.biometricEnabled)),
@@ -196,7 +254,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppStrings.biometricFailed.replaceAll('%s', value ? 'enable' : 'disable').replaceAll('%s', e.toString())),
+          content: Text(AppStrings.biometricFailed
+              .replaceAll('%s', value ? 'enable' : 'disable')
+              .replaceAll('%s', e.toString())),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -228,8 +288,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   TextField(
                     decoration: InputDecoration(
-                      labelText: AppStrings.changePin,
-                      errorText: showCurrentPinError ? AppStrings.invalidPin : null,
+                      labelText: AppStrings.currentPin,
+                      errorText:
+                          showCurrentPinError ? AppStrings.invalidPin : null,
                     ),
                     keyboardType: TextInputType.number,
                     maxLength: 4,
@@ -245,8 +306,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   TextField(
                     decoration: InputDecoration(
-                      labelText: AppStrings.changePin,
-                      errorText: showNewPinError ? AppStrings.pinsNotMatch : null,
+                      labelText: AppStrings.newPin,
+                      errorText:
+                          showNewPinError ? AppStrings.pinsNotMatch : null,
                     ),
                     keyboardType: TextInputType.number,
                     maxLength: 4,
@@ -261,8 +323,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                   TextField(
-                    decoration: const InputDecoration(
-                      labelText: AppStrings.changePin,
+                    decoration: InputDecoration(
+                      labelText: AppStrings.confirmPin,
                     ),
                     keyboardType: TextInputType.number,
                     maxLength: 4,
@@ -297,7 +359,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }
 
                     try {
-                      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                      final authProvider =
+                          Provider.of<AuthProvider>(context, listen: false);
                       await authProvider.changePinCode(currentPin, newPin);
                       if (mounted) Navigator.of(context).pop();
                       _showSuccessSnackBar(AppStrings.pinUpdated);
@@ -349,13 +412,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       try {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
         await authProvider.resetAuth();
-        
+
         final dataProvider = Provider.of<DataProvider>(context, listen: false);
         await dataProvider.clearAllData();
-        
+
         if (mounted) {
           _showSuccessSnackBar(AppStrings.dataCleared);
-          
+
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const SplashScreen()),
             (route) => false,
@@ -363,7 +426,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
       } catch (e) {
         debugPrint('Error clearing data: $e');
-        _showErrorDialog(AppStrings.dataClearFailed.replaceAll('%s', e.toString()));
+        _showErrorDialog(
+            AppStrings.dataClearFailed.replaceAll('%s', e.toString()));
       } finally {
         if (mounted) {
           setState(() {
@@ -481,8 +545,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text(
                     title,
                     style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
                     ),
                   ),
                   Text(
@@ -510,37 +577,116 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
-      final String filePath = await dataProvider.exportAllData();
-      
+
+      // Check if backup password is set
+      final bool isBackupPasswordSet = await dataProvider.isBackupPasswordSet();
+
+      String? backupPassword;
+
+      if (!isBackupPasswordSet) {
+        // Show dialog to set backup password
+        backupPassword = await showDialog<String>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const BackupPasswordDialog(
+            isSettingPassword: true,
+          ),
+        );
+
+        if (backupPassword == null) {
+          // User cancelled
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+
+        // Set the backup password
+        await dataProvider.setBackupPassword(backupPassword);
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(AppStrings.backupPasswordSet),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        // Ask for existing backup password
+        backupPassword = await showDialog<String>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const BackupPasswordDialog(
+            isSettingPassword: false,
+          ),
+        );
+
+        if (backupPassword == null) {
+          // User cancelled
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+
+        // Verify the backup password
+        final bool isValid =
+            await dataProvider.verifyBackupPassword(backupPassword);
+        if (!isValid) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(AppStrings.backupPasswordIncorrect),
+                backgroundColor: Theme.of(context).colorScheme.error,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
+      // Export with backup password
+      final String filePath =
+          await dataProvider.exportAllDataWithBackupPassword(backupPassword!);
+
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(AppStrings.backupCreated),
+            content: const Text(AppStrings.backupPasswordSecure),
             duration: const Duration(seconds: 6),
             action: SnackBarAction(
               label: AppStrings.ok,
-              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
             ),
           ),
         );
-        
+
         await Share.shareXFiles(
           [XFile(filePath)],
-          subject: '${AppStrings.appName} Data Backup',
-          text: 'Your ${AppStrings.appName} data backup. Keep this file secure!',
+          subject: '${AppStrings.appName} Secure Data Backup',
+          text:
+              'Your ${AppStrings.appName} password-protected backup. Keep this file and password secure!',
         );
-        
+
         _showSuccessSnackBar(AppStrings.dataExported);
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
-      _showErrorDialog(AppStrings.dataExportFailed.replaceAll('%s', e.toString()));
+      _showErrorDialog(
+          AppStrings.dataExportFailed.replaceAll('%s', e.toString()));
     }
   }
 
@@ -571,39 +717,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _isLoading = true;
       });
-      
+
       final result = await FilePicker.platform.pickFiles();
-      
+
       if (result == null || result.files.isEmpty) {
         setState(() {
           _isLoading = false;
         });
         return;
       }
-      
+
       final file = result.files.first;
       final filePath = file.path;
-      
+
       if (filePath == null) {
         setState(() {
           _isLoading = false;
         });
-        _showErrorDialog(AppStrings.dataImportFailed.replaceAll('%s', 'Invalid file selected'));
+        _showErrorDialog(AppStrings.dataImportFailed
+            .replaceAll('%s', 'Invalid file selected'));
         return;
       }
-      
+
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
-      
+
       try {
+        // First try to import as legacy backup (without password)
         await dataProvider.importData(filePath);
-        
+
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
-          
-          final bool hasData = dataProvider.credentials.isNotEmpty || dataProvider.familyMembers.isNotEmpty;
-          
+
+          final bool hasData = dataProvider.credentials.isNotEmpty ||
+              dataProvider.familyMembers.isNotEmpty;
+
           if (!hasData) {
             showDialog(
               context: context,
@@ -621,21 +770,106 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             );
           } else {
+            // Show legacy backup warning
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  title: const Text(AppStrings.importData),
+                  content: const Text(AppStrings.backupPasswordLegacy),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text(AppStrings.ok),
+                    ),
+                  ],
+                );
+              },
+            );
             _showSuccessSnackBar(AppStrings.dataImported);
           }
         }
       } catch (e) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          
-          if (e.toString().contains('Key length not 128/192/256 bits') || 
-              e.toString().contains('corrupted') ||
-              e.toString().contains('different device')) {
-            _showBackupCompatibilityDialog();
-          } else {
-            _showErrorDialog(AppStrings.dataImportFailed.replaceAll('%s', e.toString()));
+        // If legacy import fails, try password-protected import
+        debugPrint('Legacy import failed with error: ' + e.toString());
+        if (e.toString().contains('Invalid encrypted data format') ||
+            e.toString().contains(
+                'Could not decrypt file with the provided password') ||
+            e.toString().contains('Legacy decryption failed') ||
+            e.toString().contains('Could not decrypt file')) {
+          debugPrint(
+              'Prompting for backup password due to legacy import failure.');
+          // Ask for backup password
+          final String? backupPassword = await showDialog<String>(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const BackupPasswordDialog(
+              isSettingPassword: false,
+            ),
+          );
+
+          if (backupPassword == null) {
+            // User cancelled
+            setState(() {
+              _isLoading = false;
+            });
+            debugPrint('User cancelled backup password dialog.');
+            return;
+          }
+
+          try {
+            debugPrint('Trying password-protected import...');
+            // Try import with backup password
+            await dataProvider.importDataWithBackupPassword(
+                filePath, backupPassword);
+
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+              debugPrint('Password-protected import succeeded.');
+              _showSuccessSnackBar(AppStrings.dataImported);
+            }
+          } catch (passwordError) {
+            debugPrint('Password-protected import failed: ' +
+                passwordError.toString());
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+
+              if (passwordError
+                  .toString()
+                  .contains('Incorrect backup password')) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text(AppStrings.backupPasswordIncorrect),
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              } else {
+                _showErrorDialog(AppStrings.dataImportFailed
+                    .replaceAll('%s', passwordError.toString()));
+              }
+            }
+          }
+        } else {
+          // Handle other import errors
+          debugPrint('Import failed with unhandled error: ' + e.toString());
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+
+            if (e.toString().contains('Key length not 128/192/256 bits') ||
+                e.toString().contains('corrupted') ||
+                e.toString().contains('different device')) {
+              _showBackupCompatibilityDialog();
+            } else {
+              _showErrorDialog(
+                  AppStrings.dataImportFailed.replaceAll('%s', e.toString()));
+            }
           }
         }
       }
@@ -644,11 +878,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         setState(() {
           _isLoading = false;
         });
-        _showErrorDialog(AppStrings.dataImportFailed.replaceAll('%s', e.toString()));
+        _showErrorDialog(
+            AppStrings.dataImportFailed.replaceAll('%s', e.toString()));
       }
     }
   }
-  
+
   void _showBackupCompatibilityDialog() {
     showDialog(
       context: context,
@@ -701,12 +936,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } else {
       url = Uri.parse(AppStrings.appWebsite);
     }
-    
+
     try {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
-        _showErrorDialog(AppStrings.couldNotLaunch.replaceAll('%s', 'app store'));
+        _showErrorDialog(
+            AppStrings.couldNotLaunch.replaceAll('%s', 'app store'));
       }
     } catch (e) {
       debugPrint('Error opening app store: $e');
@@ -716,15 +952,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _viewPrivacyPolicy() async {
     final Uri url = Uri.parse(AppStrings.privacyPolicyUrl);
-    
+
     try {
       debugPrint('Attempting to launch URL: $url');
       final canLaunch = await canLaunchUrl(url);
       debugPrint('Can launch URL: $canLaunch');
-      
+
       if (canLaunch) {
         final result = await launchUrl(
-          url, 
+          url,
           mode: LaunchMode.externalApplication,
           webViewConfiguration: const WebViewConfiguration(
             enableJavaScript: true,
@@ -733,14 +969,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
         debugPrint('Launch result: $result');
         if (!result) {
-          _showErrorDialog(AppStrings.couldNotLaunch.replaceAll('%s', 'privacy policy'));
+          _showErrorDialog(
+              AppStrings.couldNotLaunch.replaceAll('%s', 'privacy policy'));
         }
       } else {
-        _showErrorDialog('${AppStrings.couldNotLaunch.replaceAll('%s', 'privacy policy')}. Please try opening it manually: ${AppStrings.privacyPolicyUrl}');
+        _showErrorDialog(
+            '${AppStrings.couldNotLaunch.replaceAll('%s', 'privacy policy')}. Please try opening it manually: ${AppStrings.privacyPolicyUrl}');
       }
     } catch (e) {
       debugPrint('Error opening privacy policy: $e');
-      _showErrorDialog(AppStrings.couldNotLaunch.replaceAll('%s', 'privacy policy'));
+      _showErrorDialog(
+          AppStrings.couldNotLaunch.replaceAll('%s', 'privacy policy'));
     }
   }
 
@@ -764,14 +1003,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       path: AppStrings.supportEmail,
                       query: 'subject=${AppStrings.emailSubject}&body=',
                     );
-                    
+
                     Navigator.of(context).pop();
-                    
+
                     if (await canLaunchUrl(emailUri)) {
                       await launchUrl(emailUri);
                     } else {
                       if (mounted) {
-                        _showErrorDialog(AppStrings.couldNotLaunch.replaceAll('%s', 'email client'));
+                        _showErrorDialog(AppStrings.couldNotLaunch
+                            .replaceAll('%s', 'email client'));
                       }
                     }
                   },
@@ -782,14 +1022,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: const Text(AppStrings.websiteUrl),
                   onTap: () async {
                     final Uri websiteUri = Uri.parse(AppStrings.websiteUrl);
-                    
+
                     Navigator.of(context).pop();
-                    
+
                     if (await canLaunchUrl(websiteUri)) {
                       await launchUrl(websiteUri);
                     } else {
                       if (mounted) {
-                        _showErrorDialog(AppStrings.couldNotLaunch.replaceAll('%s', 'website'));
+                        _showErrorDialog(AppStrings.couldNotLaunch
+                            .replaceAll('%s', 'website'));
                       }
                     }
                   },
@@ -807,7 +1048,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } catch (e) {
       debugPrint('Error in connect us: $e');
-      _showErrorDialog(AppStrings.couldNotLaunch.replaceAll('%s', 'connect options'));
+      _showErrorDialog(
+          AppStrings.couldNotLaunch.replaceAll('%s', 'connect options'));
     }
   }
 
@@ -843,7 +1085,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       try {
         // Reset all color assignments
         await FamilyAvatar.resetAllColorAssignments();
-        
+
         // Trigger a rebuild of the app to refresh all avatars
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -871,4 +1113,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     }
   }
-} 
+
+  void _showUpgradeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text(AppStrings.upgradeNoticeTitle),
+          content: Text(AppStrings.upgradeNoticeBody),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _exportData(); // Use the unified export flow
+                _setUpgradeComplete();
+              },
+              child: const Text(AppStrings.upgradeNoticeAction),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(AppStrings.upgradeNoticeRemindMeLater),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
