@@ -6,7 +6,9 @@ import 'package:keepsafe/providers/theme_provider.dart';
 import 'package:keepsafe/utils/theme.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:keepsafe/providers/data_provider.dart';
+import 'package:keepsafe/providers/subscription_provider.dart';
 import 'package:keepsafe/screens/splash_screen.dart';
+import 'package:keepsafe/screens/paywall_screen.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
@@ -132,6 +134,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         subtitle: const Text(AppStrings.updateSecurityPin),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: _showChangePinDialog,
+                      ),
+                      const Divider(),
+                      _buildSection('Subscription'),
+                      Consumer<SubscriptionProvider>(
+                        builder: (context, subscriptionProvider, child) {
+                          return ListTile(
+                            leading: Icon(
+                              subscriptionProvider.isProUser
+                                  ? Icons.star
+                                  : Icons.star_outline,
+                              color: subscriptionProvider.isProUser
+                                  ? Colors.amber
+                                  : null,
+                            ),
+                            title: Text(
+                              subscriptionProvider.isProUser
+                                  ? 'Pro Plan'
+                                  : 'Free Plan',
+                            ),
+                            subtitle: Text(
+                              subscriptionProvider.getSubscriptionStatusText(),
+                            ),
+                            trailing: subscriptionProvider.isProUser
+                                ? null
+                                : const Icon(Icons.chevron_right),
+                            onTap: subscriptionProvider.isProUser
+                                ? null
+                                : () {
+                                    final dataProvider =
+                                        Provider.of<DataProvider>(context,
+                                            listen: false);
+                                    final currentFamilyMembers =
+                                        dataProvider.familyMembers.length + 1;
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => PaywallScreen(
+                                          currentFamilyMembers:
+                                              currentFamilyMembers,
+                                          maxFreeMembers: 3,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                          );
+                        },
                       ),
                       const Divider(),
                       _buildSection(AppStrings.dataManagement),

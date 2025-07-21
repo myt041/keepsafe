@@ -8,12 +8,15 @@ import 'package:keepsafe/screens/credentials/add_credential_screen.dart';
 import 'package:keepsafe/screens/credentials/credential_details_screen.dart';
 import 'package:keepsafe/screens/family/add_family_member_screen.dart';
 import 'package:keepsafe/screens/settings_screen.dart';
+import 'package:keepsafe/screens/paywall_screen.dart';
+import 'package:keepsafe/providers/subscription_provider.dart';
 import 'package:keepsafe/utils/theme.dart';
 import 'package:keepsafe/widgets/credential_card.dart';
 import 'package:keepsafe/widgets/empty_state.dart';
 import 'package:keepsafe/widgets/family_avatar.dart';
 import 'package:keepsafe/widgets/search_bar.dart';
 import 'package:keepsafe/services/app_update_service.dart';
+import 'package:shimmer/shimmer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -38,13 +41,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadData() async {
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
-    
+
     setState(() {
       _isLoading = true;
     });
-    
+
     await dataProvider.initialize();
-    
+
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -79,11 +82,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addNewFamilyMember() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const AddFamilyMemberScreen(),
-      ),
-    );
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    final subscriptionProvider =
+        Provider.of<SubscriptionProvider>(context, listen: false);
+    final currentFamilyMembers =
+        dataProvider.familyMembers.length + 1; // +1 for the user
+    final maxFreeMembers = 3; // Free tier limit
+
+    // Check if user can add more family members
+    if (!subscriptionProvider.canAddFamilyMember(currentFamilyMembers)) {
+      // Show paywall instead of add family member screen
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PaywallScreen(
+            currentFamilyMembers: currentFamilyMembers,
+            maxFreeMembers: maxFreeMembers,
+          ),
+        ),
+      );
+    } else {
+      // Allow adding family member
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const AddFamilyMemberScreen(),
+        ),
+      );
+    }
   }
 
   void _viewCredential(Credential credential) {
@@ -97,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _logout() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     authProvider.logout();
-    
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
@@ -106,6 +130,22 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openSettings() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
+  }
+
+  void _showPaywall() {
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    final currentFamilyMembers =
+        dataProvider.familyMembers.length + 1; // +1 for the user
+    final maxFreeMembers = 3; // Free tier limit
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PaywallScreen(
+          currentFamilyMembers: currentFamilyMembers,
+          maxFreeMembers: maxFreeMembers,
+        ),
+      ),
     );
   }
 
@@ -133,6 +173,63 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Theme.of(context).colorScheme.surface,
         foregroundColor: Theme.of(context).colorScheme.onSurface,
         actions: [
+          // Conditional Upgrade/Pro button
+          Consumer<SubscriptionProvider>(
+            builder: (context, subscriptionProvider, child) {
+              if (subscriptionProvider.isProUser) {
+                // Show Pro badge instead of Upgrade button
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.amber,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.star,
+                        size: 16,
+                        color: Colors.amber[800],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Pro',
+                        style: TextStyle(
+                          color: Colors.amber[800],
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              } else {
+                // Show shimmering Upgrade button for free users
+                return Shimmer.fromColors(
+                  baseColor: Colors.amber,
+                  highlightColor: Colors.white,
+                  child: TextButton(
+                    onPressed: _showPaywall,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                    ),
+                    child: Text(
+                      'Upgrade',
+                      style: TextStyle(
+                        color: Colors.amber[800],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: _openSettings,
@@ -192,7 +289,8 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
+            color: Colors.black.withOpacity(
+                Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -209,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildFamilySelector() {
     final dataProvider = Provider.of<DataProvider>(context);
     final selectedFamilyId = dataProvider.selectedFamilyMemberId;
-    
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 0.0),
       child: Column(
@@ -227,9 +325,9 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 'Family',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
               ),
             ],
           ),
@@ -247,16 +345,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () => _onFamilyMemberSelected(null),
                   icon: Icons.person,
                 ),
-                
+
                 // Family members
                 ...dataProvider.familyMembers.map((member) {
                   // Only use photoUrl if it's a local file path, otherwise use null for initials
-                  final String? localPhotoUrl = member.photoUrl != null && 
-                      member.photoUrl!.isNotEmpty && 
-                      member.photoUrl!.startsWith('/') 
-                      ? member.photoUrl 
+                  final String? localPhotoUrl = member.photoUrl != null &&
+                          member.photoUrl!.isNotEmpty &&
+                          member.photoUrl!.startsWith('/')
+                      ? member.photoUrl
                       : null;
-                  
+
                   return _buildFamilyItem(
                     name: member.name.split(' ')[0],
                     isSelected: selectedFamilyId == member.id,
@@ -265,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     memberName: member.name,
                   );
                 }),
-                
+
                 // Add family member button
                 _buildFamilyItem(
                   name: 'Add',
@@ -340,11 +438,12 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 name,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurface,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurface,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
@@ -359,7 +458,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCategorySelector() {
     final dataProvider = Provider.of<DataProvider>(context);
     final selectedCategory = dataProvider.selectedCategory;
-    
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
       child: Column(
@@ -377,9 +476,9 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 'Categories',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
               ),
             ],
           ),
@@ -397,20 +496,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: const Text('All'),
                     selected: selectedCategory == null,
                     onSelected: (_) => _onCategorySelected(null),
-                    backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surfaceVariant,
                     selectedColor: Theme.of(context).colorScheme.primary,
                     labelStyle: TextStyle(
                       fontSize: 12,
                       color: selectedCategory == null
                           ? Theme.of(context).colorScheme.onPrimary
                           : Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontWeight: selectedCategory == null ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: selectedCategory == null
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
-                
+
                 // Category options
                 ...Credential.CATEGORIES.map((category) {
                   final isSelected = selectedCategory == category;
@@ -420,16 +523,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       label: Text(category),
                       selected: isSelected,
                       onSelected: (_) => _onCategorySelected(category),
-                      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.surfaceVariant,
                       selectedColor: Theme.of(context).colorScheme.primary,
                       labelStyle: TextStyle(
                         fontSize: 12,
                         color: isSelected
                             ? Theme.of(context).colorScheme.onPrimary
                             : Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 0),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   );
@@ -446,10 +552,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final dataProvider = Provider.of<DataProvider>(context);
     final credentials = dataProvider.credentials;
     final selectedFamilyId = dataProvider.selectedFamilyMemberId;
-    
+
     if (credentials.isEmpty) {
       String message;
-      
+
       if (selectedFamilyId != null) {
         final member = dataProvider.familyMembers
             .firstWhere((m) => m.id == selectedFamilyId);
@@ -461,7 +567,7 @@ class _HomeScreenState extends State<HomeScreen> {
       } else {
         message = 'No credentials added yet.';
       }
-      
+
       return EmptyState(
         icon: Icons.vpn_key,
         message: message,
@@ -469,13 +575,13 @@ class _HomeScreenState extends State<HomeScreen> {
         onAction: _addNewCredential,
       );
     }
-    
+
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
       itemCount: credentials.length,
       itemBuilder: (context, index) {
         final credential = credentials[index];
-        
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 16.0),
           child: CredentialCard(
@@ -486,4 +592,4 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
-} 
+}

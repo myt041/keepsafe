@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:keepsafe/providers/auth_provider.dart';
+import 'package:keepsafe/providers/subscription_provider.dart';
 import 'package:keepsafe/screens/auth/login_screen.dart';
 import 'package:keepsafe/screens/auth/setup_screen.dart';
 import 'package:keepsafe/screens/home_screen.dart';
@@ -13,7 +14,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
 
@@ -35,12 +37,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
-    // Initialize auth state and navigate accordingly
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Initialize auth state and subscription provider, then navigate accordingly
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      authProvider.initialize().then((_) {
-        _navigateToNextScreen(authProvider.status);
-      });
+      final subscriptionProvider =
+          Provider.of<SubscriptionProvider>(context, listen: false);
+
+      // Initialize both providers in parallel
+      await Future.wait([
+        authProvider.initialize(),
+        subscriptionProvider.initialize(),
+      ]);
+
+      _navigateToNextScreen(authProvider.status);
     });
   }
 
@@ -106,9 +115,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               Text(
                 'KeepSafe',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -123,4 +132,4 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
   }
-} 
+}
